@@ -1,14 +1,1402 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PANTAS WORLD LEGEND NAVIGATOR v16</title>
-    <link rel="stylesheet" href="styles.css">
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="description" content="Interactive map of 900 myths and legends from around the world">
+<title>PANTA'S WORLD LEGEND NAVIGATOR v16</title>
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script src="https://unpkg.com/topojson@3"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#020617;color:#e2e8f0;font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;overflow:hidden}
+#app{display:grid;grid-template-columns:380px 1fr;height:100vh}
+#sidebar{background:linear-gradient(180deg,#0f172a 0%,#0a0f1d 100%);border-right:2px solid #fbbf24;display:flex;flex-direction:column;overflow:hidden;box-shadow:4px 0 20px rgba(251,191,36,.1)}
+#header{padding:20px;background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%);border-bottom:3px solid #fbbf24;text-align:center}
+h1{font-size:28px;color:#fbbf24;letter-spacing:4px;text-transform:uppercase;text-shadow:0 0 20px rgba(251,191,36,.8),0 0 40px rgba(251,191,36,.4)}
+.subtitle{font-size:13px;color:#fbbf24;margin-top:8px;letter-spacing:1px;text-shadow:0 0 8px rgba(251,191,36,.4)}
+.copyright{font-size:9px;color:#fbbf24;margin-top:10px;text-transform:uppercase;letter-spacing:2px;padding-top:8px;border-top:1px solid #334155}
+.stats{display:grid;grid-template-columns:repeat(5,1fr);padding:15px;background:rgba(0,0,0,.3);border-bottom:1px solid #1e293b;gap:5px}
+.stat{text-align:center;padding:10px 5px;background:rgba(251,191,36,.05);border-radius:8px;border:1px solid rgba(251,191,36,.1)}
+.stat-val{font-size:22px;font-weight:bold;color:#fbbf24;text-shadow:0 0 8px rgba(251,191,36,.3)}
+.stat-lbl{font-size:8px;color:#64748b;text-transform:uppercase;margin-top:4px;letter-spacing:1px}
+#timeline{padding:12px 15px;border-bottom:1px solid #1e293b;background:rgba(0,0,0,.2)}
+#timeline-slider{width:100%;-webkit-appearance:none;height:6px;background:linear-gradient(90deg,#1e293b,#334155);border-radius:3px;cursor:pointer}
+#timeline-slider::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;background:linear-gradient(135deg,#fbbf24,#f59e0b);border-radius:50%;cursor:pointer;box-shadow:0 0 10px rgba(251,191,36,.5)}
+#era-display{text-align:center;margin-top:10px;font-size:12px;color:#fbbf24;font-weight:600;letter-spacing:1px}
+#filters{padding:10px 15px;border-bottom:1px solid #1e293b;background:rgba(0,0,0,.2);display:flex;flex-wrap:wrap;gap:6px}
+.filter-chip{background:rgba(30,41,59,.5);border:1px solid #475569;color:#94a3b8;padding:5px 10px;font-size:10px;cursor:pointer;border-radius:20px;transition:all .3s ease}
+.filter-chip:hover{background:rgba(251,191,36,.2);border-color:#fbbf24;color:#fbbf24}
+.filter-chip.active{background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#000;border-color:#fbbf24;font-weight:600}
+#legend-list{flex:1;overflow-y:auto;padding:10px;background:rgba(0,0,0,.1)}
+.item{background:linear-gradient(135deg,rgba(30,41,59,.6) 0%,rgba(15,23,42,.8) 100%);border:1px solid #1e293b;border-left:4px solid transparent;padding:12px;margin-bottom:6px;cursor:pointer;font-size:12px;border-radius:6px;transition:all .2s ease}
+.item:hover{border-left-color:#fbbf24;background:linear-gradient(135deg,rgba(51,65,85,.7) 0%,rgba(30,41,59,.9) 100%);transform:translateX(3px);box-shadow:0 4px 12px rgba(251,191,36,0.2)}
+.item.active{background:linear-gradient(135deg,rgba(251,191,36,.2) 0%,rgba(251,191,36,.1) 100%);border-color:#fbbf24;border-left-width:4px;box-shadow:0 0 10px rgba(251,191,36,0.3)}
+.name{color:#fbbf24;font-weight:600;font-size:13px}
+.meta{font-size:10px;color:#64748b;display:flex;justify-content:space-between;margin-top:4px}
+#search{padding:12px 15px;border-bottom:1px solid #1e293b;background:rgba(0,0,0,.2)}
+#search input{width:100%;background:rgba(15,23,42,.8);border:2px solid #334155;color:#fbbf24;padding:10px 12px;font-family:inherit;font-size:13px;border-radius:8px;transition:border-color .3s}
+#search input:focus{outline:none;border-color:#fbbf24;box-shadow:0 0 10px rgba(251,191,36,.2)}
+#search input::placeholder{color:#64748b}
+#map-container{position:relative;overflow:hidden;background:radial-gradient(ellipse at center,#0f172a 0%,#020617 50%,#000 100%)}
+svg{width:100%;height:100%}
+.land{fill:#0f172a;stroke:#334155;stroke-width:.5}
+.graticule{fill:none;stroke:#1e293b;stroke-width:.5;opacity:.4}
+.ley-line{fill:none;stroke-width:2;stroke-dasharray:8,4;opacity:.6;stroke:#fbbf24;animation:linePulse 2s ease-in-out infinite}
+@keyframes linePulse{0%,100%{opacity:.4}50%{opacity:.8}}
+.group{cursor:pointer}
+.pulse{fill:none;stroke-width:1}
+.core{stroke:#000;stroke-width:2}
+.label{fill:#e2e8f0;font-size:10px;font-weight:bold;text-shadow:0 0 3px #000;opacity:0;pointer-events:none}
+#map-title{position:absolute;top:20px;right:30px;font-size:32px;color:#fbbf24;text-transform:uppercase;letter-spacing:6px;text-shadow:0 0 30px rgba(251,191,36,.6);z-index:10;opacity:.7;pointer-events:none}
+.label.visible{opacity:1}
+.label.dimmed{opacity:0!important}
+.pulse.dimmed,.core.dimmed{opacity:.15}
+.group.dimmed{pointer-events:none}
+.core.selected{stroke:#fbbf24;fill:#fbbf24;filter:drop-shadow(0 0 8px #fbbf24)}
+.pulse.selected{animation:pulseAnim 1.5s ease-out infinite;stroke:#fbbf24;fill:none}
+@keyframes pulseAnim{0%{transform:scale(1);opacity:.8}100%{transform:scale(2.5);opacity:0}}
+#info{position:absolute;bottom:20px;right:20px;width:300px;background:rgba(2,6,23,.98);border:1px solid #334155;border-top:4px solid #fbbf24;padding:15px;padding-top:40px;display:none;max-height:400px;overflow-y:auto;z-index:50;box-shadow:0 10px 40px rgba(0,0,0,0.5),0 0 20px rgba(251,191,36,0.1)}
+#info h2{color:#fbbf24;font-size:16px;margin-bottom:8px}
+#info p{font-size:11px;line-height:1.5;color:#cbd5e1;margin-bottom:10px}
+#info-tags,#info-links{display:flex;flex-wrap:nowrap;gap:3px}
+.tag{background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:2px 6px;font-size:8px;border-radius:3px}
+.link-btn{background:#1e293b;border:1px solid #fbbf24;color:#fbbf24;padding:3px 6px;font-size:7px;border-radius:2px;text-decoration:none;white-space:nowrap}
+.link-btn:hover{background:#fbbf24;color:#000}
+#info-links{border-top:1px solid #1e293b;padding-top:10px;margin-top:10px}
+#info-links .link-label{font-size:9px;color:#fbbf24;margin-bottom:6px;font-weight:bold}
+#info-close:hover{background:#fbbf24!important;color:#000!important;border-color:#fbbf24!important}
+.badge{position:absolute;top:15px;right:15px;background:rgba(251,191,36,.2);border:1px solid #fbbf24;color:#fbbf24;padding:6px 12px;font-size:11px;border-radius:15px}
+#ctrl{position:absolute;top:15px;left:15px;background:rgba(15,23,42,.95);border:1px solid #334155;padding:10px;border-radius:6px}
+.ctrl-lbl{font-size:9px;color:#64748b;text-transform:uppercase;margin-bottom:5px;font-weight:bold}
+.btn{background:#1e293b;border:1px solid #334155;color:#94a3b8;padding:3px 7px;font-size:9px;cursor:pointer;margin:2px;border-radius:3px;display:inline-block;transition:all .2s ease}
+.btn:hover,.btn.active{background:#fbbf24;color:#000;border-color:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,0.4)}
+#btn-auto.active{background:#22c55e;border-color:#22c55e}
+#tooltip{position:absolute;background:rgba(2,6,23,.98);border:1px solid #fbbf24;padding:10px;border-radius:4px;pointer-events:none;opacity:0;max-width:250px;z-index:1000;box-shadow:0 4px 20px rgba(251,191,36,0.3)}
+#tooltip h3{color:#fbbf24;font-size:12px;margin-bottom:4px}
+#tooltip p{font-size:10px;color:#94a3b8}
+#compass{position:absolute;bottom:20px;left:20px;width:60px;height:60px;border:3px solid #fbbf24;border-radius:50%;background:rgba(15,23,42,.9);display:flex;align-items:center;justify-content:center;font-size:24px;color:#fbbf24;box-shadow:0 0 15px rgba(251,191,36,0.3)}
+.hint{font-size:8px;color:#475569;text-align:center;padding:6px;background:#0a0f1d}
+::-webkit-scrollbar{width:8px}::-webkit-scrollbar-track{background:#0a0f1d;border-radius:4px}::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#334155,#1e293b);border-radius:4px}::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#475569,#334155)}
+</style>
 </head>
 <body>
-    <h1>Welcome to PANTAS WORLD LEGEND NAVIGATOR</h1>
-    <p>This is a single-file application version 16.</p>
-    <script src="script.js"></script>
+<div id="app">
+<div id="sidebar">
+<div id="header">
+<h1>World Legends</h1>
+<div class="subtitle">v16 | 900 Myths & Legends | All Continents</div>
+<div class="copyright">© 2026 PANTA'S WORLD LEGEND NAVIGATOR</div>
+<div class="copyright">ALL RIGHTS RESERVED</div>
+<div style="font-size:8px;color:#64748b;margin-top:4px;padding:5px;border-top:1px solid #334155">Content is original research. Do not copy or reproduce without permission.</div>
+</div>
+<div class="stats">
+<div class="stat"><span id="idx" class="stat-val">-</span><br><span class="stat-lbl">Index</span></div>
+<div class="stat"><span id="tot" class="stat-val">900</span><br><span class="stat-lbl">Total</span></div>
+<div class="stat"><span id="reg" class="stat-val">11</span><br><span class="stat-lbl">Regions</span></div>
+<div class="stat"><span id="net" class="stat-val">11</span><br><span class="stat-lbl">Networks</span></div>
+<div class="stat"><span id="vis" class="stat-val">756</span><br><span class="stat-lbl">Visible</span></div>
+<div class="stat" style="background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3)"><span id="custom-count" class="stat-val" style="color:#22c55e">0</span><br><span class="stat-lbl">Custom</span></div>
+</div>
+<div id="search"><input type="text" id="search-input" placeholder="Search myths and legends..."></div>
+<div id="filters">
+<button class="filter-chip active" data-filter="all">All</button>
+<button class="filter-chip" data-filter="lost-city">Lost Cities</button>
+<button class="filter-chip" data-filter="mythical-place">Mythical</button>
+<button class="filter-chip" data-filter="underworld">Underworld</button>
+<button class="filter-chip" data-filter="sacred-site">Sacred</button>
+<button class="filter-chip" data-filter="custom" style="color:#22c55e;border-color:#22c55e">Custom</button>
+</div>
+<div id="timeline">
+<div id="timeline-slider"></div>
+<div id="era-display">All Eras</div>
+</div>
+<div style="padding:8px 15px;display:flex;gap:8px;background:rgba(0,0,0,.2);border-bottom:1px solid #1e293b">
+<button class="btn" id="btn-export" style="flex:1">Export</button>
+<button class="btn" id="btn-import" style="flex:1">Import</button>
+<button class="btn" id="btn-add" style="flex:1;background:#22c55e;border-color:#22c55e;color:#fff">+ Add</button>
+<button class="btn" id="btn-help" style="flex:0;width:30px" title="Help" onclick="document.getElementById('help-modal').style.visibility='visible'">?</button>
+<input type="file" id="file-import" accept=".json" style="display:none">
+</div>
+<div id="help-modal" style="visibility:hidden;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.95);z-index:9999;display:flex;align-items:center;justify-content:center">
+<div style="background:linear-gradient(180deg,#0f172a,#020617);border:2px solid #fbbf24;padding:20px;border-radius:10px;width:450px;max-height:90vh;overflow-y:auto">
+<h3 style="color:#fbbf24;margin-bottom:15px;text-align:center">How to Add Legends</h3>
+<div style="color:#94a3b8;font-size:12px;line-height:1.6">
+<p style="margin-bottom:10px"><strong style="color:#fbbf24">1. Click + Add</strong><br>Fill in the form with your legend's details.</p>
+<p style="margin-bottom:10px"><strong style="color:#fbbf24">2. Required Fields</strong><br>• Name - legend name<br>• Latitude/Longitude - find on map (negative = West/South)<br>• Type - Mythical Place, Lost City, Sacred Site, or Underworld<br>• Culture - e.g., Mexican, Celtic, Chinese<br>• Description - full story</p>
+<p style="margin-bottom:10px"><strong style="color:#fbbf24">3. Tags</strong><br>Comma-separated: dragon,treasure,hero</p>
+<p style="margin-bottom:10px"><strong style="color:#fbbf24">4. Share</strong><br>Click Export to save your additions. Send the file to the database owner to include in main version.</p>
+<p style="margin-bottom:10px"><strong style="color:#fbbf24">5. Import</strong><br>Click Import to load legends from a JSON file.</p>
+<p><strong style="color:#fbbf24">Map Tips</strong><br>• Click any dot for details<br>• Use filter buttons to show specific types<br>• Toggle connection networks to see related legends<br>• Arrow keys to navigate, R for random</p>
+</div>
+<button onclick="document.getElementById('help-modal').style.visibility='hidden'" style="width:100%;background:#fbbf24;color:#000;border:none;padding:10px;border-radius:4px;cursor:pointer;margin-top:15px;font-weight:bold">Got it!</button>
+</div>
+</div>
+<div id="add-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.8);z-index:2000;align-items:center;justify-content:center">
+<div style="background:linear-gradient(180deg,#0f172a,#020617);border:2px solid #fbbf24;padding:20px;border-radius:10px;width:400px;max-height:90vh;overflow-y:auto">
+<h3 style="color:#fbbf24;margin-bottom:15px;text-align:center">Add New Legend</h3>
+<div style="margin-bottom:10px"><label style="color:#94a3b8;font-size:11px">Name</label><input id="add-name" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px"></div>
+<div style="display:flex;gap:10px;margin-bottom:10px"><div style="flex:1"><label style="color:#94a3b8;font-size:11px">Latitude</label><input id="add-lat" type="number" step="0.1" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px"></div><div style="flex:1"><label style="color:#94a3b8;font-size:11px">Longitude</label><input id="add-lon" type="number" step="0.1" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px"></div></div>
+<div style="margin-bottom:10px"><label style="color:#94a3b8;font-size:11px">Type</label><select id="add-type" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px"><option value="mythical-place">Mythical Place</option><option value="lost-city">Lost City</option><option value="sacred-site">Sacred Site</option><option value="underworld">Underworld</option></select></div>
+<div style="margin-bottom:10px"><label style="color:#94a3b8;font-size:11px">Culture/Origin</label><input id="add-culture" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px"></div>
+<div style="margin-bottom:10px"><label style="color:#94a3b8;font-size:11px">Description</label><textarea id="add-desc" rows="3" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px;resize:none"></textarea></div>
+<div style="margin-bottom:10px"><label style="color:#94a3b8;font-size:11px">Tags (comma separated)</label><input id="add-tags" style="width:100%;background:#1e293b;border:1px solid #334155;color:#fff;padding:8px;border-radius:4px" placeholder="dragon,hero,treasure"></div>
+<div style="display:flex;gap:10px;margin-top:15px"><button id="btn-save-add" style="flex:1;background:#fbbf24;color:#000;border:none;padding:10px;border-radius:4px;cursor:pointer;font-weight:bold">Save</button><button id="btn-cancel-add" style="flex:1;background:#334155;color:#fff;border:none;padding:10px;border-radius:4px;cursor:pointer">Cancel</button></div>
+</div>
+</div>
+<div class="hint" style="font-size:10px;color:#64748b;text-align:center;padding:10px;background:linear-gradient(90deg,#0a0f1d,#1e293b,#0a0f1d);border-top:1px solid #1e293b;letter-spacing:1px">↑↓ Navigate | Z: Zoom | Enter: Focus</div>
+<div id="legend-list"></div>
+</div>
+<div id="map-container">
+<div id="map-title">Panta's World Legend Navigator</div>
+<svg id="map"></svg>
+<div class="badge">v16</div>
+<div id="ctrl">
+<div class="ctrl-lbl">Connection Networks</div>
+<div>
+<button class="btn active" id="toggle-all">All</button>
+<button class="btn" id="toggle-flood">Flood</button>
+<button class="btn" id="toggle-axis">Axis</button>
+<button class="btn" id="toggle-balkan">Balkan</button>
+<button class="btn" id="toggle-dragon">Dragon</button>
+<button class="btn" id="toggle-silk">Silk</button>
+<button class="btn" id="toggle-vampire">Vampire</button>
+</div>
+<div>
+<button class="btn" id="toggle-norse">Norse</button>
+<button class="btn" id="toggle-celtic">Celtic</button>
+<button class="btn" id="toggle-african">African</button>
+<button class="btn" id="toggle-shaman">Shaman</button>
+<button class="btn" id="toggle-creation">Creation</button>
+<button class="btn" id="toggle-sunHero">Sun Hero</button>
+</div>
+<div>
+<button class="btn" id="toggle-underworld">Underworld</button>
+<button class="btn" id="toggle-water">Water</button>
+<button class="btn" id="toggle-shan" title="Shan Hai creatures from classic Chinese bestiary">Shan Hai</button>
+<button class="btn" id="toggle-mayan">Mayan</button>
+<button class="btn" id="toggle-pacific">Pacific</button>
+</div>
+<div class="ctrl-lbl" style="margin-top:8px">Map Zoom</div>
+<div>
+<button class="btn" id="btn-zoom-in">+</button>
+<button class="btn" id="btn-zoom-out">-</button>
+<button class="btn" id="btn-zoom-reset">Reset</button>
+<button class="btn" id="btn-zoom-legend">Zoom</button>
+<button class="btn active" id="btn-auto">Auto: ON</button>
+</div>
+</div>
+<div id="compass">N</div>
+<div id="tooltip"><h3></h3><p></p></div>
+<div id="info"><button id="info-close" onclick="document.getElementById('info').style.display='none';selected=null;update();" style="position:absolute;top:8px;right:8px;background:#1e293b;border:1px solid #475569;color:#94a3b8;font-size:12px;font-weight:bold;cursor:pointer;padding:2px 8px;border-radius:3px;z-index:100">X</button><h2 id="info-name"></h2><p id="info-desc"></p><div id="info-tags"></div><div id="info-links"><div class="link-label">LEARN MORE</div></div></div>
+</div>
+</div>
+<script>
+const D=[
+{id:1,n:"Hyperborea",la:75,lo:0,t:"mythical-place",c:"Greek",e:0,d:"Land beyond the north wind where the sun never sets. Home of the hyperboreans, a blessed race.",tg:["arctic","paradise","gods"],cn:["axis","norse"]},
+{id:2,n:"Atlantis",la:36,lo:-24,t:"lost-city",c:"Plato",e:0,d:"Island kingdom described by Plato. Advanced civilization that sank in a single day and night.",tg:["sunken","advanced","cataclysm"],cn:["flood","axis"]},
+{id:3,n:"Mount Meru",la:35,lo:80,t:"sacred-site",c:"Hindu",e:0,d:"Five-peaked cosmic mountain, center of the universe. Home of Brahma and the gods.",tg:["cosmic","sacred","hindu"],cn:["axis","hindu"]},
+{id:4,n:"Xibalba",la:17,lo:-89.5,t:"underworld",c:"Maya",e:0,d:"The fearsome Maya underworld. Nine layers of darkness ruled by the Lords of Death.",tg:["underworld","death","maya"],cn:["maya"]},
+{id:5,n:"Agartha",la:0,lo:0,t:"underworld",c:"Various",e:0,d:"Legendary subterranean kingdom in the hollow Earth. Home to advanced beings.",tg:["hollow earth","subterranean","secret"],cn:["axis"]},
+{id:6,n:"Dilmun",la:26,lo:50.5,t:"mythical-place",c:"Sumerian",e:0,d:"Paradise garden of the sun. Land of the living where death never came.",tg:["paradise","immortal","garden"],cn:["sumerian"]},
+{id:7,n:"Avalon",la:51.2,lo:-2.9,t:"mythical-place",c:"Celtic",e:0,d:"Isle of Apples. Magical island where King Arthur rests, waiting to return.",tg:["arthurian","fairy","magic"],cn:["celtic"]},
+{id:8,n:"Hades",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"The eternal realm of the dead. Beneath the earth, ruled by Lord Hades.",tg:["underworld","death","greek"],cn:["greek"]},
+{id:9,n:"Elysium",la:35,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Islands of the Blessed where heroes who died honorably lived eternally in paradise.",tg:["paradise","heroes","afterlife"],cn:["flood","greek"]},
+{id:10,n:"Shangri-La",la:28,lo:85,t:"mythical-place",c:"Buddhist",e:2,d:"Hidden valley in the Himalayas of eternal peace. Time flows slowly, people live centuries.",tg:["hidden","paradise","himalayas"],cn:["axis","buddhist"]},
+{id:11,n:"El Dorado",la:4,lo:-72,t:"lost-city",c:"Muisca",e:1,d:"City of Gold. The legendary king covered himself in gold dust and jumped into the lake.",tg:["gold","treasure","conquest"],cn:["flood","south-america"]},
+{id:12,n:"Camelot",la:51.5,lo:-2.5,t:"mythical-place",c:"Celtic",e:1,d:"King Arthur's glorious court. Where the Knights of the Round Table gathered.",tg:["arthurian","knights","royal"],cn:["celtic"]},
+{id:13,n:"Valhalla",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"Odin's great hall where warriors slain in battle feast eternally.",tg:["warriors","odin","norse"],cn:["norse"]},
+{id:14,n:"Lemuria",la:-15,lo:130,t:"lost-city",c:"Various",e:0,d:"Ancient lost continent in the Pacific. Home to an advanced civilization.",tg:["lost continent","pacific","ancient"],cn:["axis"]},
+{id:15,n:"Shambhala",la:30,lo:85,t:"mythical-place",c:"Buddhist",e:2,d:"Hidden Buddhist kingdom of pure enlightenment. Only the pure of heart can find it.",tg:["hidden","buddhist","enlightenment"],cn:["axis","buddhist"]},
+{id:16,n:"Aztlan",la:23,lo:-102,t:"lost-city",c:"Aztec",e:1,d:"Ancestral homeland of the Aztec people. Seven caves of creation.",tg:["aztec","mexico","origin"],cn:["aztec"]},
+{id:17,n:"Nimrud",la:36,lo:43,t:"lost-city",c:"Assyrian",e:0,d:"Great city of Assyria. Gate of the Gods where divine beings walked.",tg:["assyrian","mesopotamia","gods"],cn:["mesopotamian"]},
+{id:18,n:"Lyonesse",la:50,lo:-6,t:"lost-city",c:"Celtic",e:0,d:"Sunken kingdom between Cornwall and the Scilly Isles. Said to have 140 churches.",tg:["sunken","celtic","cornwall"],cn:["flood","celtic"]},
+{id:19,n:"Mount Kailash",la:31,lo:81,t:"sacred-site",c:"Hindu",e:0,d:"Sacred mountain, axis of the world. Pilgrimage site for millions.",tg:["sacred","mountain","pilgrimage"],cn:["axis","hindu","silk"]},
+{id:20,n:"Paititi",la:-12,lo:-70,t:"lost-city",c:"Inca",e:2,d:"Lost city of gold hidden deep in the Amazon rainforest.",tg:["gold","inca","amazon"],cn:["south-america"]},
+{id:21,n:"Thule",la:75,lo:-20,t:"mythical-place",c:"Greek",e:0,d:"Ultima Thule - the farthest land, at the edge of the world.",tg:["arctic","edge","unknown"],cn:["norse"]},
+{id:22,n:"Lake Titicaca",la:-16,lo:-69,t:"sacred-site",c:"Inca",e:0,d:"Sacred lake where the sun god made the first Inca emperor.",tg:["sacred","lake","inca"],cn:["flood","axis","south-america"]},
+{id:23,n:"Machu Picchu",la:-13,lo:-72,t:"lost-city",c:"Inca",e:2,d:"Lost citadel of the Incas, hidden in the clouds.",tg:["inca","mountain","citadel"],cn:["axis","south-america"]},
+{id:24,n:"Thebes",la:25,lo:32,t:"sacred-site",c:"Egyptian",e:0,d:"City of a hundred gates. Home to Karnak temple and the god Amun.",tg:["egypt","temple","gods"],cn:["egyptian"]},
+{id:25,n:"Troy",la:39,lo:26,t:"lost-city",c:"Greek",e:0,d:"City of the Trojan War. Built by Poseidon and Apollo.",tg:["trojan","war","epic"],cn:["greek"]},
+{id:26,n:"Petra",la:30,lo:35,t:"lost-city",c:"Nabataean",e:1,d:"Rose-red city carved into cliffs. Center of the ancient spice trade.",tg:["carved","rock","trade"],cn:["silk","arabian"]},
+{id:27,n:"Pompeii",la:40,lo:14,t:"lost-city",c:"Roman",e:2,d:"City preserved in volcanic ash by Vesuvius in 79 AD.",tg:["preserved","volcano","roman"],cn:["roman"]},
+{id:28,n:"Angkor Wat",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Largest religious monument. Built by Khmer king Suryavarman II.",tg:["temple","khmer","cambodia"],cn:["axis","southeast-asia"]},
+{id:29,n:"Stonehenge",la:51,lo:-1.8,t:"sacred-site",c:"Celtic",e:0,d:"Prehistoric stone circle aligned with solstices. Built by druids.",tg:["stone","circle","druidic"],cn:["axis","celtic"]},
+{id:30,n:"Glastonbury Tor",la:51,lo:-2.7,t:"sacred-site",c:"Celtic",e:0,d:"Avalon, Isle of Apples. Home of King Arthur and the Holy Grail.",tg:["avalon","arthurian","sacred"],cn:["celtic"]},
+{id:31,n:"Easter Island",la:-27,lo:-109,t:"sacred-site",c:"Rapa Nui",e:1,d:"Island of the moai statues. Built by ancestors to watch over villages.",tg:["statues","mysterious","pacific"],cn:["pacific"]},
+{id:32,n:"Nan Madol",la:7,lo:158,t:"lost-city",c:"Pohnpeian",e:1,d:"Venice of the Pacific. 92 artificial islands of basalt.",tg:["pacific","artificial","islands"],cn:["pacific"]},
+{id:33,n:"Chichen Itza",la:20,lo:-88,t:"sacred-site",c:"Maya",e:1,d:"Pyramid of Kukulcan. Center of Maya astronomy.",tg:["pyramid","maya","astronomy"],cn:["maya"]},
+{id:34,n:"Teotihuacan",la:19,lo:-98,t:"sacred-site",c:"Aztec",e:0,d:"City of the Gods. Pyramid of Sun and Moon built by unknown builders.",tg:["pyramid","aztec","mexico"],cn:["aztec"]},
+{id:35,n:"Great Zimbabwe",la:-20,lo:31,t:"lost-city",c:"Shona",e:2,d:"Stone ruins of a medieval African empire. Capital of the Zimbabwe culture.",tg:["stone","africa","empire"],cn:["african"]},
+{id:36,n:"Timbuktu",la:16,lo:-3,t:"sacred-site",c:"Mali",e:3,d:"City of Gold. Center of Islamic learning and trade.",tg:["gold","learning","islamic"],cn:["silk","flood","african"]},
+{id:37,n:"Cahokia",la:38,lo:-90,t:"lost-city",c:"Mississippian",e:1,d:"Mound builder metropolis. Largest pre-Columbian city north of Mexico.",tg:["mounds","america","ancient"],cn:["north-america"]},
+{id:38,n:"Tikal",la:17,lo:-89.5,t:"sacred-site",c:"Maya",e:1,d:"Great jungle city. One of the largest Maya centers.",tg:["maya","jungle","guatemala"],cn:["maya"]},
+{id:39,n:"Palenque",la:17,lo:-92,t:"sacred-site",c:"Maya",e:1,d:"Temple complex of Pakal the Great. The inscriptions tell of the Maya creation.",tg:["maya","temple","pakal"],cn:["maya"]},
+{id:40,n:"Nazca Lines",la:-14,lo:-75,t:"sacred-site",c:"Nazca",e:0,d:"Giant geoglyphs in the desert. Created by the Nazca people.",tg:["geoglyphs","desert","peru"],cn:["south-america"]},
+{id:41,n:"Sacsayhuaman",la:-13.5,lo:-71.5,t:"sacred-site",c:"Inca",e:1,d:"Fortress above Cusco. Massive stones fitted without mortar.",tg:["inca","fortress","peru"],cn:["south-america"]},
+{id:42,n:"Baalbek",la:34,lo:36,t:"sacred-site",c:"Roman",e:1,d:"Temple of Jupiter. Built with massive stones weighing 800 tons.",tg:["temple","lebanon","roman"],cn:["roman","levant"]},
+{id:43,n:"Lascaux",la:45,lo:1,t:"sacred-site",c:"Paleolithic",e:0,d:"Cave paintings of extraordinary beauty. 17,000 years old.",tg:["cave","paintings","prehistoric"],cn:["celtic"]},
+{id:44,n:"Mohenjo Daro",la:27,lo:68,t:"lost-city",c:"Indus",e:0,d:"Harappan civilization city. Advanced drainage and grid planning.",tg:["harappan","indus","ancient"],cn:["indian"]},
+{id:45,n:"Sukhothai",la:17,lo:100,t:"lost-city",c:"Thai",e:2,d:"First Thai capital. Buddha images in meditation poses.",tg:["thai","ancient","capital"],cn:["southeast-asia"]},
+{id:46,n:"Dunhuang Caves",la:40,lo:94,t:"sacred-site",c:"Chinese",e:2,d:"Cave temples with Buddhist art spanning 1000 years.",tg:["caves","buddhist","silk road"],cn:["silk","chinese"]},
+{id:47,n:"Zmajeva Gradina",la:43.9,lo:19,t:"mythical-place",c:"Serbian",e:1,d:"Dragon's garden. Where dragons guard ancient treasures.",tg:["dragon","serbian","guardians"],cn:["balkan","slavic"]},
+{id:48,n:"Veles",la:44,lo:20.5,t:"underworld",c:"Slavic",e:0,d:"Underworld kingdom of the Slavic god Veles. Rival of Perun.",tg:["underworld","slavic","gods"],cn:["balkan","slavic"]},
+{id:49,n:"Mount Rila",la:43.7,lo:21.9,t:"sacred-site",c:"Bulgarian",e:1,d:"Sacred mountain where the fairy queen dwells.",tg:["fairy","mountain","bulgarian"],cn:["balkan"]},
+{id:50,n:"Ribarstvo",la:44.8,lo:20.5,t:"lost-city",c:"Serbian",e:1,d:"Lost city swallowed by the Danube's floods.",tg:["sunken","danube","serbian"],cn:["balkan","flood"]},
+{id:51,n:"Rila Monastery",la:42.1,lo:23.3,t:"sacred-site",c:"Bulgarian",e:2,d:"Hidden monastery in the mountains. Spiritual center of Bulgaria.",tg:["monastery","bulgarian","spiritual"],cn:["balkan","orthodox"]},
+{id:52,n:"Cave of Orpheus",la:41.6,lo:24.9,t:"sacred-site",c:"Thracian",e:0,d:"Where Orpheus played his lyre, charming all living things.",tg:["orpheus","music","thracian"],cn:["orphic","balkan"]},
+{id:53,n:"Seven Rila Lakes",la:42.1,lo:23.3,t:"mythical-place",c:"Bulgarian",e:1,d:"Mystical glacial lakes. Each connected by waterfalls.",tg:["lakes","mystical","bulgarian"],cn:["balkan"]},
+{id:54,n:"Poienari Castle",la:45.5,lo:25.6,t:"sacred-site",c:"Romanian",e:2,d:"Dracula's castle. Built by Vlad the Impaler.",tg:["vampire","vlad","dracula"],cn:["vampire","balkan"]},
+{id:55,n:"Transylvanian Caves",la:46.5,lo:24.5,t:"underworld",c:"Romanian",e:0,d:"Underworld entrances. Home to witches and spirits.",tg:["underworld","caves","witches"],cn:["balkan"]},
+{id:56,n:"Blidinje Valley",la:43.6,lo:17.5,t:"mythical-place",c:"Bosnian",e:0,d:"Valley where dragons sleep. Their breath creates winter.",tg:["dragon","valley","bosnian"],cn:["balkan"]},
+{id:57,n:"Jadovnik Vampire",la:43.1,lo:18.8,t:"sacred-site",c:"Bosnian",e:1,d:"Site of the first vampire grave. Buried with stake through heart.",tg:["vampire","grave","bosnian"],cn:["vampire","balkan"]},
+{id:58,n:"Durmitor",la:43.1,lo:19,t:"sacred-site",c:"Montenegrin",e:0,d:"Mountain of the gods. Home of the mountain spirits.",tg:["gods","mountain","montenegrin"],cn:["balkan"]},
+{id:59,n:"Skadar Lake",la:42.4,lo:19.3,t:"mythical-place",c:"Montenegrin",e:0,d:"Lake of serpents. A dragon lives in its depths.",tg:["dragon","lake","serpents"],cn:["balkan"]},
+{id:60,n:"Lovcen",la:42.4,lo:18.8,t:"sacred-site",c:"Montenegrin",e:1,d:"Sacred mountain. Burial site of rulers.",tg:["mountain","sacred","montenegrin"],cn:["balkan"]},
+{id:61,n:"Lake Ohrid",la:41,lo:20.8,t:"mythical-place",c:"Macedonian",e:0,d:"Lake with a church built by God in one night.",tg:["lake","church","macedonian"],cn:["balkan"]},
+{id:62,n:"Troyan Monastery",la:42.9,lo:24.7,t:"sacred-site",c:"Bulgarian",e:2,d:"Monastery where dragons guard treasure.",tg:["dragon","monastery","treasure"],cn:["balkan"]},
+{id:63,n:"Cave Dva Jazera",la:43.4,lo:22.9,t:"underworld",c:"Serbian",e:0,d:"Cave where two seas meet underground.",tg:["underworld","caves","serbian"],cn:["balkan"]},
+{id:64,n:"Zmey Gorynych",la:42.5,lo:26,t:"mythical-place",c:"Bulgarian",e:0,d:"Three-headed dragon terrorizing the land.",tg:["dragon","monster","bulgarian"],cn:["dragon","balkan"]},
+{id:65,n:"Sarmizegetusa",la:45.6,lo:23.3,t:"sacred-site",c:"Dacian",e:0,d:"Sacred capital of the Dacian kingdom.",tg:["dacian","capital","roman"],cn:["balkan"]},
+{id:66,n:"Devil's Town",la:43,lo:21.9,t:"sacred-site",c:"Serbian",e:0,d:"Rock formations made by the devil's tears.",tg:["devil","rocks","serbian"],cn:["balkan"]},
+{id:67,n:"Kruja Castle",la:41.5,lo:19.8,t:"sacred-site",c:"Albanian",e:2,d:"Fortress of Skanderbeg, national hero against invaders.",tg:["skanderbeg","hero","albanian"],cn:["balkan"]},
+{id:68,n:"Pirin Mountains",la:41.6,lo:23.4,t:"mythical-place",c:"Bulgarian",e:0,d:"Home of the banshee. Her screams forecast death.",tg:["banshee","mountain","bulgarian"],cn:["balkan"]},
+{id:69,n:"Vila Zana",la:43.3,lo:17.8,t:"mythical-place",c:"Bosnian",e:0,d:"Fairy of the whirlpools. She drowns those who see her.",tg:["fairy","water","bosnian"],cn:["balkan"]},
+{id:70,n:"Garden of Eden",la:32,lo:35,t:"mythical-place",c:"Biblical",e:0,d:"Paradise garden where Adam and Eve lived.",tg:["eden","paradise","biblical"],cn:["axis","semetic"]},
+{id:71,n:"Tower of Babel",la:32,lo:44,t:"sacred-site",c:"Biblical",e:0,d:"Tower reaching heaven. God confused languages.",tg:["babel","tower","confusion"],cn:["semetic"]},
+{id:72,n:"Noah's Ark",la:39,lo:44,t:"mythical-place",c:"Biblical",e:0,d:"Ark that saved animals from the great flood.",tg:["flood","ark","biblical"],cn:["flood","semetic"]},
+{id:73,n:"Sodom and Gomorrah",la:31,lo:35,t:"lost-city",c:"Biblical",e:0,d:"Cities destroyed by fire from heaven for their sins.",tg:["destruction","fire","biblical"],cn:["semetic"]},
+{id:74,n:"Jericho",la:32,lo:35,t:"sacred-site",c:"Biblical",e:0,d:"City whose walls fell at the sound of trumpets.",tg:["jericho","walls","biblical"],cn:["semetic"]},
+{id:75,n:"Mount Sinai",la:28,lo:34,t:"sacred-site",c:"Biblical",e:0,d:"Mountain where Moses received the Ten Commandments.",tg:["sinai","moses","commandments"],cn:["semetic"]},
+{id:76,n:"Dead Sea",la:31,lo:35,t:"mythical-place",c:"Biblical",e:0,d:"Sea where nothing lives. Lot's wife turned to salt.",tg:["dead sea","lot","salt"],cn:["flood","semetic"]},
+{id:77,n:"Babylon",la:32,lo:44,t:"lost-city",c:"Babylonian",e:1,d:"Hanging Gardens. City of the Tower of Babel.",tg:["babylon","hanging gardens","mesopotamia"],cn:["mesopotamian"]},
+{id:78,n:"Ur",la:30,lo:46,t:"sacred-site",c:"Sumerian",e:0,d:"City of Abraham. Ziggurat of the moon god.",tg:["ur","abraham","sumerian"],cn:["mesopotamian"]},
+{id:79,n:"Nineveh",la:36,lo:43,t:"sacred-site",c:"Assyrian",e:1,d:"Jonah preached here. City of 600,000.",tg:["nineveh","jonah","assyrian"],cn:["mesopotamian"]},
+{id:80,n:"Persepolis",la:30,lo:53,t:"lost-city",c:"Persian",e:1,d:"Burned by Alexander. Palace of the Persian kings.",tg:["persepolis","persian","alexander"],cn:["silk","persian"]},
+{id:81,n:"Persian Gardens",la:30,lo:53,t:"mythical-place",c:"Persian",e:1,d:"Paradise gardens. Model for all garden design.",tg:["garden","paradise","persian"],cn:["silk"]},
+{id:82,n:"Shang Dynasty",la:35,lo:114,t:"lost-city",c:"Chinese",e:1,d:"First Chinese dynasty. Oracle bones reveal early beliefs.",tg:["china","dynasty","oracle"],cn:["chinese"]},
+{id:83,n:"Terra Cotta Army",la:34,lo:109,t:"sacred-site",c:"Chinese",e:2,d:"8,000 soldiers protecting Emperor Qin in afterlife.",tg:["warriors","emperor","china"],cn:["chinese"]},
+{id:84,n:"Forbidden City",la:40,lo:116,t:"sacred-site",c:"Chinese",e:3,d:"Imperial palace. Center of the Chinese universe.",tg:["palace","emperor","china"],cn:["chinese"]},
+{id:85,n:"Mount Tai",la:36,lo:117,t:"sacred-site",c:"Chinese",e:0,d:"Sacred mountain of the east. Emperor worshipped here.",tg:["sacred","mountain","china"],cn:["axis","chinese"]},
+{id:86,n:"Cave of the Gold",la:34,lo:108,t:"underworld",c:"Chinese",e:2,d:"Underground realm with gold and jewels.",tg:["gold","underground","china"],cn:["chinese"]},
+{id:87,n:"Hanging Gardens",la:32,lo:44,t:"mythical-place",c:"Babylonian",e:1,d:"One of Seven Wonders. Terraced gardens by the Euphrates.",tg:["gardens","wonder","babylon"],cn:["mesopotamian"]},
+{id:88,n:"Kashmir",la:34,lo:75,t:"mythical-place",c:"Indian",e:0,d:"Valley of paradise. Home of Shiva and Parvati.",tg:["paradise","shiva","kashmir"],cn:["axis","indian"]},
+{id:89,n:"River Ganges",la:25,lo:83,t:"sacred-site",c:"Hindu",e:0,d:"Holy river of India. Ganga descended from heaven.",tg:["river","sacred","hindu"],cn:["hindu","indian"]},
+{id:90,n:"Varanasi",la:25,lo:83,t:"sacred-site",c:"Hindu",e:0,d:"City of Lord Shiva. Where Hindus come to die.",tg:["shiva","city","hindu"],cn:["hindu","indian"]},
+{id:91,n:"Mount Kailash Tibetan",la:31,lo:81,t:"sacred-site",c:"Buddhist",e:0,d:"Sacred to four religions. No one has summited it.",tg:["sacred","mountain","tibet"],cn:["axis","buddhist"]},
+{id:92,n:"Shangri-La Tibet",la:28,lo:90,t:"mythical-place",c:"Buddhist",e:2,d:"Hidden valley in the Himalayas.",tg:["hidden","buddhist","himalayas"],cn:["buddhist"]},
+{id:93,n:"River Styx",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"River of the underworld. Achilles was dipped here.",tg:["river","underworld","greek"],cn:["greek"]},
+{id:94,n:"River Lethe",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"River of forgetting. Dead drink to forget life.",tg:["forgetting","river","greek"],cn:["greek"]},
+{id:95,n:"Minotaur's Labyrinth",la:35,lo:25,t:"mythical-place",c:"Greek",e:0,d:"Labyrinth in Crete. Half-man, half-bull dwelled here.",tg:["minotaur","labyrinth","crete"],cn:["greek"]},
+{id:96,n:"Oracle of Delphi",la:38,lo:22,t:"sacred-site",c:"Greek",e:0,d:"Pythia spoke prophecies. Center of the world.",tg:["oracle","delphi","greek"],cn:["greek"]},
+{id:97,n:"Temple of Artemis",la:37,lo:27,t:"sacred-site",c:"Greek",e:1,d:"One of Seven Wonders. Burned by Herostratus.",tg:["artemis","wonder","greek"],cn:["greek"]},
+{id:98,n:"Colossus of Rhodes",la:36,lo:28,t:"mythical-place",c:"Greek",e:1,d:"One of Seven Wonders. Giant statue of Helios.",tg:["colossus","wonder","rhodes"],cn:["greek"]},
+{id:99,n:"Pharaoh's Pyramids",la:29,lo:31,t:"sacred-site",c:"Egyptian",e:0,d:"Tombs of pharaohs. Built for eternal life.",tg:["pyramids","pharaoh","egypt"],cn:["egyptian"]},
+{id:100,n:"Valley of Kings",la:25,lo:32,t:"sacred-site",c:"Egyptian",e:0,d:"Royal tombs. Where Tutankhamun rests.",tg:["tombs","kings","egypt"],cn:["egyptian"]},
+{id:101,n:"Sphinx",la:29,lo:31,t:"sacred-site",c:"Egyptian",e:0,d:"Body of lion, head of man. Guards the pyramids.",tg:["sphinx","guardian","egypt"],cn:["egyptian"]},
+{id:102,n:"Nile Flood Plains",la:25,lo:32,t:"mythical-place",c:"Egyptian",e:0,d:"Where Egypt's gods walked. Home of Osiris.",tg:["nile","osiris","flood"],cn:["flood","egyptian"]},
+{id:103,n:"Book of the Dead",la:25,lo:32,t:"underworld",c:"Egyptian",e:0,d:"Guide to the afterlife. Weighing of the heart.",tg:["afterlife","book","egypt"],cn:["egyptian"]},
+{id:104,n:"Isis Temple",la:28,lo:25,t:"sacred-site",c:"Egyptian",e:1,d:"Temple of Isis at Philae. Last pagan temple closed.",tg:["isis","temple","egypt"],cn:["egyptian"]},
+{id:105,n:"Sumerian Ziggurat",la:31,lo:46,t:"sacred-site",c:"Sumerian",e:0,d:"Tower reaching heaven. Model for Babel.",tg:["ziggurat","sumerian","tower"],cn:["mesopotamian"]},
+{id:106,n:"Garden of Babylon",la:32,lo:44,t:"mythical-place",c:"Babylonian",e:1,d:"Hanging Gardens built for queen's homesickness.",tg:["gardens","babylon","wonder"],cn:["mesopotamian"]},
+{id:107,n:"Gilgamesh's Uruk",la:31,lo:46,t:"lost-city",c:"Sumerian",e:0,d:"City of the hero Gilgamesh. Walls said to reach heaven.",tg:["gilgamesh","uruk","sumerian"],cn:["mesopotamian"]},
+{id:108,n:"Ishtar Gate",la:32,lo:44,t:"sacred-site",c:"Babylonian",e:1,d:"Gate of the goddess Ishtar. Glazed with dragons.",tg:["ishtar","gate","babylon"],cn:["mesopotamian"]},
+{id:109,n:"Tower of Nimrud",la:36,lo:43,t:"lost-city",c:"Assyrian",e:0,d:"Ancient city of Assur. Winged bulls guarded gates.",tg:["assyrian","nimrud","winged"],cn:["mesopotamian"]},
+{id:110,n:"Ephesus",la:38,lo:27,t:"sacred-site",c:"Greek",e:1,d:"Temple of Artemis. One of Seven Wonders.",tg:["ephesus","artemis","wonder"],cn:["greek","silk"]},
+{id:111,n:"Ephesus Caves",la:38,lo:27,t:"underworld",c:"Greek",e:0,d:"Where the Seven Sleepers hid from persecution.",tg:["sleepers","caves","christian"],cn:["greek"]},
+{id:112,n:"Troy Horse",la:39,lo:26,t:"mythical-place",c:"Greek",e:0,d:"Wooden horse that ended the Trojan War.",tg:["trojan horse","war","troy"],cn:["greek"]},
+{id:113,n:"Scylla and Charybdis",la:38,lo:16,t:"mythical-place",c:"Greek",e:0,d:"Sea monsters on opposite sides of a narrow strait.",tg:["monsters","sea","greek"],cn:["greek"]},
+{id:114,n:"Sirens' Island",la:38,lo:20,t:"mythical-place",c:"Greek",e:0,d:"Island of the Sirens whose song lured sailors.",tg:["sirens","island","greek"],cn:["greek"]},
+{id:115,n:"Circe's Island",la:40,lo:17,t:"mythical-place",c:"Greek",e:0,d:"Aiaia where Circe turned men to pigs.",tg:["circe","island","magic"],cn:["greek"]},
+{id:116,n:"Lotus Eaters",la:33,lo:10,t:"mythical-place",c:"Greek",e:0,d:"Land where eating lotus made men forget home.",tg:["lotus","forget","greek"],cn:["greek"]},
+{id:117,n:"Cyclops' Cave",la:37,lo:26,t:"underworld",c:"Greek",e:0,d:"Polyphemus' cave. Odysseus blinded the one-eyed giant.",tg:["cyclops","cave","odysseus"],cn:["greek"]},
+{id:118,n:"Medusa's Lair",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Gorgon's lair. Those who saw her turned to stone.",tg:["medusa","gorgon","greek"],cn:["greek"]},
+{id:119,n:"Amazon River",la:-3,lo:-60,t:"sacred-site",c:"South American",e:0,d:"Sacred river of the Amazon. Home of the rainbow serpent.",tg:["river","amazon","sacred"],cn:["south-america","flood"]},
+{id:120,n:"Amazonas Tribes",la:-3,lo:-65,t:"mythical-place",c:"Indigenous",e:1,d:"Land of warrior women. Amazons raided neighboring tribes.",tg:["amazon","warriors","tribes"],cn:["south-america"]},
+{id:121,n:"Inca Creation",la:-13,lo:-72,t:"mythical-place",c:"Inca",e:0,d:"Viracocha created the world from darkness.",tg:["creation","inca","god"],cn:["south-america"]},
+{id:122,n:"Sun Island",la:-16,lo:-69,t:"sacred-site",c:"Inca",e:0,d:"Island of the sun. Where the sun deity lived.",tg:["sun","island","inca"],cn:["axis","south-america"]},
+{id:123,n:"Moon Temple",la:-16,lo:-69,t:"sacred-site",c:"Inca",e:0,d:"Temple of the moon on Sun Island.",tg:["moon","temple","inca"],cn:["south-america"]},
+{id:124,n:"Inca Bridge",la:-13,lo:-73,t:"sacred-site",c:"Inca",e:2,d:"Legendary bridges made of grass across canyons.",tg:["bridge","inca","canyon"],cn:["south-america"]},
+{id:125,n:"El Dorado City",la:6,lo:-73,t:"lost-city",c:"Muisca",e:1,d:"The actual city of gold, not just the king.",tg:["gold","city","el dorado"],cn:["south-america"]},
+{id:126,n:"Lake Parime",la:7,lo:-61,t:"mythical-place",c:"Indigenous",e:1,d:"Lake said to surround El Dorado.",tg:["lake","el dorado","treasure"],cn:["flood","south-america"]},
+{id:127,n:"Canaan",la:32,lo:35,t:"mythical-place",c:"Biblical",e:0,d:"Promised land flowing with milk and honey.",tg:["canaan","promised","biblical"],cn:["semetic"]},
+{id:128,n:"Carmel",la:32.5,lo:35,t:"sacred-site",c:"Biblical",e:0,d:"Mount Carmel. Elijah confronted the prophets of Baal.",tg:["carmel","elijah","biblical"],cn:["semetic"]},
+{id:129,n:"Jordan River",la:32,lo:36,t:"sacred-site",c:"Biblical",e:0,d:"River of baptism. Jesus was baptized here.",tg:["jordan","baptism","christian"],cn:["semetic"]},
+{id:130,n:"Bethlehem",la:32,lo:35,t:"sacred-site",c:"Biblical",e:2,d:"Birthplace of Jesus Christ.",tg:["bethlehem","jesus","christian"],cn:["semetic"]},
+{id:131,n:"Jerusalem",la:32,lo:35,t:"sacred-site",c:"Biblical",e:0,d:"Holy city. Temple of Solomon built here.",tg:["jerusalem","temple","holy"],cn:["axis","semetic"]},
+{id:132,n:"Temple Mount",la:32,lo:35,t:"sacred-site",c:"Jewish",e:0,d:"Where Abraham almost sacrificed Isaac.",tg:["temple","abraham","sacrifice"],cn:["semetic"]},
+{id:133,n:"Mount Zion",la:32,lo:35,t:"sacred-site",c:"Biblical",e:0,d:"Hill of God. City of David.",tg:["zion","david","jerusalem"],cn:["semetic"]},
+{id:134,n:"Golgotha",la:32,lo:35,t:"sacred-site",c:"Christian",e:2,d:"Hill of the skull. Where Jesus was crucified.",tg:["golgotha","crucifixion","christian"],cn:["semetic"]},
+{id:135,n:"Garden of Gethsemane",la:32,lo:35,t:"sacred-site",c:"Christian",e:2,d:"Where Jesus prayed before his arrest.",tg:["garden","jesus","christian"],cn:["semetic"]},
+{id:136,n:"Sea of Galilee",la:32.5,lo:35.5,t:"sacred-site",c:"Christian",e:2,d:"Jesus walked on water here.",tg:["galilee","jesus","miracle"],cn:["semetic"]},
+{id:137,n:"Mount of Beatitudes",la:33,lo:35,t:"sacred-site",c:"Christian",e:2,d:"Where Jesus gave the Sermon on the Mount.",tg:["beatitudes","sermon","christian"],cn:["semetic"]},
+{id:138,n:"Capernaum",la:33,lo:35.5,t:"sacred-site",c:"Christian",e:2,d:"Town of Jesus. Where he performed many miracles.",tg:["capernaum","jesus","miracles"],cn:["semetic"]},
+{id:139,n:"Nazareth",la:32.5,lo:35,t:"sacred-site",c:"Christian",e:2,d:"Where Jesus grew up.",tg:["nazareth","jesus","childhood"],cn:["semetic"]},
+{id:140,n:"Bethany",la:32,lo:35,t:"sacred-site",c:"Christian",e:2,d:"Home of Lazarus, Mary, and Martha.",tg:["bethany","lazarus","christian"],cn:["semetic"]},
+{id:141,n:"Emmaus",la:32,lo:35,t:"sacred-site",c:"Christian",e:2,d:"Where Jesus walked with disciples after resurrection.",tg:["emmaus","resurrection","christian"],cn:["semetic"]},
+{id:142,n:"Damascus",la:33,lo:36,t:"sacred-site",c:"Christian",e:2,d:"Where Saul became Paul on the road.",tg:["damascus","paul","conversion"],cn:["semetic"]},
+{id:143,n:"Ephesus Church",la:38,lo:27,t:"sacred-site",c:"Christian",e:2,d:"One of Seven Churches of Revelation.",tg:["ephesus","revelation","church"],cn:["greek"]},
+{id:144,n:"Sahara Oases",la:23,lo:25,t:"mythical-place",c:"African",e:0,d:"Oases where desert spirits dwell.",tg:["sahara","oasis","spirits"],cn:["african"]},
+{id:145,n:"Nile Source",la:0,lo:38,t:"mythical-place",c:"African",e:0,d:"Source of the Nile, believed to be in paradise.",tg:["nile","source","africa"],cn:["african"]},
+{id:146,n:"Zulu Spirit World",la:-28,lo:28,t:"underworld",c:"Zulu",e:0,d:"Where ancestors watch over the living.",tg:["ancestors","spirits","zulu"],cn:["african"]},
+{id:147,n:"Voodoo Loa",la:22,lo:85,t:"mythical-place",c:"Haitian",e:2,d:"Spirit beings between God and humans.",tg:["voodoo","spirits","haiti"],cn:["african"]},
+{id:148,n:"Serpent Mound",la:39,lo:-84,t:"sacred-site",c:"Native American",e:0,d:"Great serpent earthwork in Ohio.",tg:["serpent","earthwork","native"],cn:["north-america"]},
+{id:149,n:"Cahokia Mounds",la:38,lo:-90,t:"sacred-site",c:"Native American",e:1,d:"Monk's Mound. Largest earthwork in Americas.",tg:["mounds","cahokia","native"],cn:["north-america"]},
+{id:150,n:"Devil's Tower",la:44,lo:-105,t:"sacred-site",c:"Native American",e:0,d:"Where the bears clawed the rock. First national monument.",tg:["tower","native","sacred"],cn:["north-america"]},
+{id:151,n:"Rainbow Bridge",la:37,lo:-111,t:"sacred-site",c:"Native American",e:0,d:"Natural arch. Sacred to Navajo.",tg:["rainbow","bridge","navajo"],cn:["north-america"]},
+{id:152,n:"Sedona Vortex",la:35,lo:-112,t:"mythical-place",c:"Native American",e:0,d:"Energy vortexes in the Arizona desert.",tg:["vortex","energy","spiritual"],cn:["north-america"]},
+{id:153,n:"Pima Creation",la:33,lo:-112,t:"mythical-place",c:"Native American",e:0,d:"Where Elder Brother made the world.",tg:["creation","pima","native"],cn:["north-america"]},
+{id:154,n:"Hopi Kivas",la:36,lo:-110,t:"sacred-site",c:"Native American",e:0,d:"Underground ceremonial chambers.",tg:["kiva","ceremonial","hopi"],cn:["north-america"]},
+{id:155,n:"Mesoamerican Ball Court",la:17,lo:-92,t:"sacred-site",c:"Maya",e:1,d:"Where ballplayers honored the gods. Losers sacrificed.",tg:["ballgame","maya","sacrifice"],cn:["maya"]},
+{id:156,n:"Mayan Underworld",la:17,lo:-90,t:"underworld",c:"Maya",e:0,d:"Xibalba's nine layers of darkness.",tg:["xibalba","underworld","maya"],cn:["maya"]},
+{id:157,n:"Blood Mountain",la:34,lo:-84,t:"sacred-site",c:"Cherokee",e:0,d:"Where Cherokees made sacrifices to the sun.",tg:["blood","mountain","cherokee"],cn:["north-america"]},
+{id:158,n:"Thunderbird Land",la:47,lo:-122,t:"mythical-place",c:"Pacific Northwest",e:0,d:"Home of the great Thunderbird.",tg:["thunderbird","spirits","native"],cn:["north-america"]},
+{id:159,n:"Wendigo Territory",la:50,lo:-85,t:"mythical-place",c:"Algonquian",e:0,d:"Where the man-eating Wendigo roams.",tg:["wendigo","monster","native"],cn:["north-america"]},
+{id:160,n:"Plymouth Rock",la:42,lo:-71,t:"sacred-site",c:"Pilgrim",e:3,d:"Where Pilgrims landed in 1620.",tg:["plymouth","pilgrims","america"],cn:["north-america"]},
+{id:161,n:"Mormon Temple",la:41,lo:-112,t:"sacred-site",c:"Mormon",e:3,d:"Salt Lake Temple. Center of Mormon faith.",tg:["temple","mormon","utah"],cn:["north-america"]},
+{id:162,n:"Rosetta Stone",la:31,lo:30,t:"sacred-site",c:"Egyptian",e:2,d:"Stone that unlocked hieroglyphics.",tg:["rosetta","egyptian","language"],cn:["egyptian"]},
+{id:163,n:"Abu Simbel",la:22,lo:32,t:"sacred-site",c:"Egyptian",e:1,d:"Temple of Ramses. Moved to save from dam.",tg:["ramses","temple","nile"],cn:["egyptian"]},
+{id:164,n:"Karnak Temple",la:25,lo:33,t:"sacred-site",c:"Egyptian",e:0,d:"Largest religious complex ever built.",tg:["karnak","temple","egypt"],cn:["egyptian"]},
+{id:165,n:"Luxor",la:25,lo:33,t:"sacred-site",c:"Egyptian",e:0,d:"City of palaces. Valley of Kings nearby.",tg:["luxor","palaces","egypt"],cn:["egyptian"]},
+{id:166,n:"Denderah",la:26,lo:32,t:"sacred-site",c:"Egyptian",e:0,d:"Temple of Hathor. Zodiac ceiling.",tg:["hathor","zodiac","egypt"],cn:["egyptian"]},
+{id:167,n:"Philae Island",la:24,lo:33,t:"sacred-site",c:"Egyptian",e:1,d:"Temple of Isis. Last pagan rituals.",tg:["isis","philae","nile"],cn:["egyptian"]},
+{id:168,n:"Elephantine",la:24,lo:33,t:"sacred-site",c:"Egyptian",e:0,d:"Island at first cataract. Defended by gods.",tg:["elephantine","island","nile"],cn:["egyptian"]},
+{id:169,n:"Abydos",la:26,lo:32,t:"sacred-site",c:"Egyptian",e:0,d:"Temple of Seti. Hall of Kings.",tg:["abydos","seti","egypt"],cn:["egyptian"]},
+{id:170,n:"Heliopolis",la:30,lo:31,t:"sacred-site",c:"Egyptian",e:0,d:"City of the sun. Obelisks to the sky.",tg:["heliopolis","sun","egypt"],cn:["egyptian"]},
+{id:171,n:"Memphis",la:29,lo:31,t:"lost-city",c:"Egyptian",e:0,d:"Capital of Old Kingdom. Home of Ptah.",tg:["memphis","old kingdom","egypt"],cn:["egyptian"]},
+{id:172,n:"Amarna",la:27,lo:31,t:"lost-city",c:"Egyptian",e:1,d:"Akhenaten's capital. Worshipped Aten.",tg:["amarna","akhenaten","egypt"],cn:["egyptian"]},
+{id:173,n:"Sphinx's Dream",la:29,lo:31,t:"mythical-place",c:"Egyptian",e:0,d:"Sphinx was once a man cursed to become a beast.",tg:["sphinx","curse","dream"],cn:["egyptian"]},
+{id:174,n:"Pharaoh's Curse",la:29,lo:31,t:"mythical-place",c:"Egyptian",e:1,d:"Tomb inscriptions warned of death.",tg:["curse","tomb","pharaoh"],cn:["egyptian"]},
+{id:175,n:"Ankh Symbol",la:29,lo:31,t:"mythical-place",c:"Egyptian",e:0,d:"Key of life. Held by gods to grant eternal life.",tg:["ankh","life","egypt"],cn:["egyptian"]},
+{id:176,n:"Ka Statues",la:29,lo:31,t:"sacred-site",c:"Egyptian",e:0,d:"Statues containing the spirit double.",tg:["ka","statue","egypt"],cn:["egyptian"]},
+{id:177,n:"Scarab Beetle",la:30,lo:32,t:"mythical-place",c:"Egyptian",e:0,d:"Khepri god of dawn. Sun rolled across sky.",tg:["scarab","sun","egypt"],cn:["egyptian"]},
+{id:178,n:"Cat Goddess",la:31,lo:32,t:"mythical-place",c:"Egyptian",e:0,d:"Bastet protected homes. Cats were sacred.",tg:["bastet","cat","egypt"],cn:["egyptian"]},
+{id:179,n:"Nile Crocodile",la:24,lo:32,t:"mythical-place",c:"Egyptian",e:0,d:"Sobek the crocodile god. Feared and revered.",tg:["sobek","crocodile","egypt"],cn:["egyptian"]},
+{id:180,n:"Ibex Demigods",la:30,lo:35,t:"mythical-place",c:"Semitic",e:0,d:"Wild goats that led Abraham to sacrifice.",tg:["ibex","abraham","mountain"],cn:["semetic"]},
+{id:181,n:"Grail Castle",la:44,lo:-1,t:"mythical-place",c:"Arthurian",e:2,d:"Where the Holy Grail appeared to knights.",tg:["grail","castle","arthurian"],cn:["celtic"]},
+{id:182,n:"Grail Cup",la:44,lo:-1,t:"sacred-site",c:"Christian",e:2,d:"Cup used at Last Supper. Joseph brought to Britain.",tg:["grail","chalice","christian"],cn:["celtic"]},
+{id:183,n:"Lance of Longinus",la:44,lo:-1,t:"sacred-site",c:"Christian",e:2,d:"Spear that pierced Christ's side.",tg:["spear","longinus","holy relic"],cn:["celtic"]},
+{id:184,n:"Sangreal Bloodline",la:45,lo:-1,t:"mythical-place",c:"Christian",e:2,d:"Secret bloodline of Jesus and Mary Magdalene.",tg:["bloodline","jesus","secret"],cn:["celtic"]},
+{id:185,n:"Fisher King",la:44,lo:-1,t:"mythical-place",c:"Arthurian",e:2,d:"Wounded king whose realm perished with him.",tg:["fisher king","wound","arthurian"],cn:["celtic"]},
+{id:186,n:"Merlin's Cave",la:51,lo:-3,t:"underworld",c:"Arthurian",e:1,d:"Where Merlin was imprisoned by Nimue.",tg:["merlin","cave","arthurian"],cn:["celtic"]},
+{id:187,n:"Excalibur",la:51,lo:-5,t:"mythical-place",c:"Arthurian",e:1,d:"King Arthur's sword. Returned by the Lady of the Lake.",tg:["excalibur","sword","arthurian"],cn:["celtic"]},
+{id:188,n:"Round Table",la:51,lo:-3,t:"mythical-place",c:"Arthurian",e:1,d:"Knights seated equally. No head of table.",tg:["round table","knights","arthurian"],cn:["celtic"]},
+{id:189,n:"Grail Temple",la:45,lo:-1,t:"sacred-site",c:"Arthurian",e:2,d:"Ship where Joseph of Arimathea arrived.",tg:["grail","joseph","temple"],cn:["celtic"]},
+{id:190,n:"Bran's Head",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Bendigeid Vran's head spoke prophecies.",tg:["head","bram","celtic"],cn:["celtic"]},
+{id:191,n:"Camelot Castle",la:51,lo:-2,t:"mythical-place",c:"Arthurian",e:1,d:"Arthur's capital. Site of Round Table.",tg:["camelot","castle","arthurian"],cn:["celtic"]},
+{id:192,n:"Lady of the Lake",la:52,lo:-4,t:"mythical-place",c:"Arthurian",e:1,d:"Magic lady who gave Excalibur.",tg:["lake","lady","arthurian"],cn:["celtic"]},
+{id:193,n:"Morgan le Fay",la:51,lo:-3,t:"mythical-place",c:"Arthurian",e:1,d:"Arthur's half-sister. Powerful sorceress.",tg:["morgan","magic","arthurian"],cn:["celtic"]},
+{id:194,n:"Grail Quest",la:44,lo:-2,t:"mythical-place",c:"Arthurian",e:2,d:"Knights searched for the Holy Grail.",tg:["quest","grail","arthurian"],cn:["celtic"]},
+{id:195,n:"Holy Thorn",la:51,lo:-2,t:"sacred-site",c:"Christian",e:2,d:"Thorn from Christ's crown planted at Glastonbury.",tg:["thorn","christ","glastonbury"],cn:["celtic"]},
+{id:196,n:"Avalon Apple Trees",la:51,lo:-3,t:"mythical-place",c:"Celtic",e:0,d:"Apple trees from Avalon grant immortality.",tg:["apple","avalon","immortal"],cn:["celtic"]},
+{id:197,n:"White Hill",la:52,lo:-1,t:"sacred-site",c:"Celtic",e:0,d:"Where dragons were buried. Wars foretold.",tg:["dragons","hill","celtic"],cn:["celtic"]},
+{id:198,n:"Stone of Destiny",la:57,lo:-4,t:"sacred-site",c:"Celtic",e:0,d:"Jacob's pillow. Scottish coronation stone.",tg:["stone","destiny","scotland"],cn:["celtic"]},
+{id:199,n:"Clochafarmont",la:55,lo:-6,t:"sacred-site",c:"Celtic",e:0,d:"Where St. Patrick banished snakes from Ireland.",tg:["patrick","snakes","ireland"],cn:["celtic"]},
+{id:200,n:"Tir na nOg",la:53,lo:-8,t:"mythical-place",c:"Irish",e:0,d:"Land of eternal youth. Oisín visited for 300 years.",tg:["youth","land","irish"],cn:["celtic"]},
+{id:201,n:"Banshee's Warning",la:53,lo:-7,t:"mythical-place",c:"Irish",e:0,d:"Wailing woman foretells death in a family.",tg:["banshee","death","irish"],cn:["celtic"]},
+{id:202,n:"Leprechaun Gold",la:53,lo:-7,t:"mythical-place",c:"Irish",e:0,d:"Hidden pots of gold guarded by leprechauns.",tg:["leprechaun","gold","irish"],cn:["celtic"]},
+{id:203,n:"Druidic Oak",la:52,lo:-4,t:"sacred-site",c:"Celtic",e:0,d:"The oak was sacred to druids. Mistletoe grew there.",tg:["oak","druid","sacred"],cn:["celtic"]},
+{id:204,n:"St. Brigid's Fire",la:53,lo:-6,t:"sacred-site",c:"Irish",e:1,d:"Sacred flame kept burning at Kildare.",tg:["brigid","fire","irish"],cn:["celtic"]},
+{id:205,n:"Raven of prophecy",la:52,lo:-3,t:"mythical-place",c:"Celtic",e:0,d:"Bran the Blessed. Ravens brought prophecy.",tg:["raven","prophecy","celtic"],cn:["celtic"]},
+{id:206,n:"Yggdrasil World Tree",la:55,lo:15,t:"sacred-site",c:"Norse",e:0,d:"Great ash tree. Connects nine worlds.",tg:["yggdrasil","world tree","norse"],cn:["axis","norse"]},
+{id:207,n:"Asgard",la:60,lo:20,t:"mythical-place",c:"Norse",e:0,d:"Home of the gods. Rainbow bridge connects to Midgard.",tg:["asgard","gods","norse"],cn:["norse"]},
+{id:208,n:"Bifrost Bridge",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Rainbow bridge between Asgard and Midgard.",tg:["bifrost","rainbow","norse"],cn:["norse"]},
+{id:209,n:"Valhalla Hall",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"Odin's hall. Warriors feast after death.",tg:["valhalla","odin","norse"],cn:["norse"]},
+{id:210,n:"Folkvangr Fields",la:60,lo:12,t:"mythical-place",c:"Norse",e:0,d:"Freya's fields. Half of war dead go here.",tg:["folkvangr","freya","norse"],cn:["norse"]},
+{id:211,n:"Hel's Realm",la:60,lo:25,t:"underworld",c:"Norse",e:0,d:"Underworld ruled by Hel. Dead who don't die gloriously.",tg:["hel","underworld","norse"],cn:["norse"]},
+{id:212,n:"Midgard Serpent",la:60,lo:0,t:"mythical-place",c:"Norse",e:0,d:"Jormungandr. Thor will battle at Ragnarok.",tg:["serpent","thor","norse"],cn:["norse"]},
+{id:213,n:"Niflheim",la:90,lo:0,t:"underworld",c:"Norse",e:0,d:"Realm of mist. Ice and darkness.",tg:["niflheim","mist","norse"],cn:["norse"]},
+{id:214,n:"Muspelheim",la:60,lo:30,t:"mythical-place",c:"Norse",e:0,d:"Realm of fire. Surtr will emerge at Ragnarok.",tg:["muspelheim","fire","norse"],cn:["norse"]},
+{id:215,n:"Ragnarok",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"End of worlds. Gods, giants, monsters battle.",tg:["ragnarok","doom","norse"],cn:["norse"]},
+{id:216,n:"Thor's Hammer",la:55,lo:14,t:"sacred-site",c:"Norse",e:0,d:"Mjolnir. Returns to hand when thrown.",tg:["thor","hammer","norse"],cn:["norse"]},
+{id:217,n:"Mimir's Well",la:55,lo:16,t:"sacred-site",c:"Norse",e:0,d:"Well of wisdom. Odin sacrificed his eye.",tg:["mimir","wisdom","norse"],cn:["norse"]},
+{id:218,n:"Idavoll Plain",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Where gods meet. Will survive Ragnarok.",tg:["idavoll","gods","norse"],cn:["norse"]},
+{id:219,n:"Fenrir Wolf",la:60,lo:25,t:"mythical-place",c:"Norse",e:0,d:"Bound wolf. Will break free at Ragnarok.",tg:["fenrir","wolf","norse"],cn:["norse"]},
+{id:220,n:"Loki's Children",la:60,lo:20,t:"mythical-place",c:"Norse",e:0,d:"Fenrir, Jormungandr, Hel. Monsters of prophecy.",tg:["loki","monsters","norse"],cn:["norse"]},
+{id:221,n:"Viking Funeral",la:60,lo:10,t:"mythical-place",c:"Norse",e:1,d:"Burned on ship. Warriors go straight to Valhalla.",tg:["funeral","viking","norse"],cn:["norse"]},
+{id:222,n:"Berserker Rage",la:60,lo:15,t:"mythical-place",c:"Norse",e:1,d:"Warriors who became bears. Unstoppable in battle.",tg:["berserker","rage","norse"],cn:["norse"]},
+{id:223,n:"Kraken Depths",la:60,lo:0,t:"mythical-place",c:"Norse",e:0,d:"Giant sea monster. Ships mistake for islands.",tg:["kraken","sea","norse"],cn:["norse"]},
+{id:224,n:"Jotunheim",la:60,lo:28,t:"mythical-place",c:"Norse",e:0,d:"Land of giants. Enemies of the gods.",tg:["jotun","giants","norse"],cn:["norse"]},
+{id:225,n:"Utgard Fortress",la:60,lo:28,t:"mythical-place",c:"Norse",e:0,d:"Giant king's castle. Tricks of magic.",tg:["utgard","giants","norse"],cn:["norse"]},
+{id:226,n:"Dwarven Forge",la:60,lo:22,t:"sacred-site",c:"Norse",e:0,d:"Where dwarfs made magical treasures.",tg:["dwarfs","forge","norse"],cn:["norse"]},
+{id:227,n:"Freya's Necklace",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"Brisingamen. Four dwarfs made it for Freya.",tg:["freya","necklace","norse"],cn:["norse"]},
+{id:228,n:"Andvari's Ring",la:60,lo:20,t:"mythical-place",c:"Norse",e:0,d:"Ring of gold. Cursed dwarf's treasure.",tg:["ring","gold","norse"],cn:["norse"]},
+{id:229,n:"Skadi's Hunt",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Goddess of winter. Chases gods for husband.",tg:["skadi","winter","norse"],cn:["norse"]},
+{id:230,n:"Valkyries",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"Chosen half of slain for Valhalla.",tg:["valkyrie","warriors","norse"],cn:["norse"]},
+{id:231,n:"Odin's Ravens",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Thought and Memory. Fly the world daily.",tg:["ravens","odin","norse"],cn:["norse"]},
+{id:232,n:"Sleipnir Horse",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Odin's eight-legged horse. Swift as wind.",tg:["sleipnir","horse","norse"],cn:["norse"]},
+{id:233,n:"Gungnir Spear",la:60,lo:18,t:"sacred-site",c:"Norse",e:0,d:"Odin's spear. Never misses its mark.",tg:["gungnir","spear","norse"],cn:["norse"]},
+{id:234,n:"Draupnir Ring",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Odin's ring. Eight new rings drip daily.",tg:["draupnir","ring","norse"],cn:["norse"]},
+{id:235,n:"HUGIN MUNIN",la:60,lo:18,t:"mythical-place",c:"Norse",e:0,d:"Thought and Memory. Ravens of Odin.",tg:["ravens","mind","norse"],cn:["norse"]},
+{id:236,n:"Gullveig Seer",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"Witch burned three times. Birthed three witches.",tg:["gullveig","witch","norse"],cn:["norse"]},
+{id:237,n:"Heimdall's Horn",la:60,lo:15,t:"mythical-place",c:"Norse",e:0,d:"Giallar Horn. Will blow at Ragnarok.",tg:["heimdall","horn","norse"],cn:["norse"]},
+{id:238,n:"Hofund Sword",la:60,lo:20,t:"sacred-site",c:"Norse",e:0,d:"Sword that split light from darkness.",tg:["sword","light","norse"],cn:["norse"]},
+{id:239,n:"Blarney Stone",la:52,lo:-8,t:"sacred-site",c:"Irish",e:2,d:"Stone of eloquence. Kissed for the gift of gab.",tg:["blarney","stone","irish"],cn:["celtic"]},
+{id:240,n:"St. Patrick's Bell",la:54,lo:-8,t:"sacred-site",c:"Irish",e:1,d:"Bell of St. Patrick. Supranatural ring.",tg:["patrick","bell","irish"],cn:["celtic"]},
+{id:241,n:"Shamrock",la:53,lo:-8,t:"mythical-place",c:"Irish",e:0,d:"Three-leaf clover. St. Patrick explained Trinity.",tg:["shamrock","trinity","irish"],cn:["celtic"]},
+{id:242,n:"Fionn mac Cumhaill",la:53,lo:-8,t:"mythical-place",c:"Irish",e:0,d:"Giant hero. Licked thumb to gain wisdom.",tg:["fionn","giant","irish"],cn:["celtic"]},
+{id:243,n:"Cú Chulainn",la:54,lo:-8,t:"mythical-place",c:"Irish",e:0,d:"Hound of Culann. Fought to death honorably.",tg:["cuchulainn","warrior","irish"],cn:["celtic"]},
+{id:244,n:"Tara Hill",la:53,lo:-7,t:"sacred-site",c:"Irish",e:0,d:"Seat of High Kings. Lia Fail stone screamed.",tg:["tara","kings","irish"],cn:["celtic"]},
+{id:245,n:"Newgrange",la:54,lo:-6,t:"sacred-site",c:"Irish",e:0,d:"Passage tomb. Sun lights inner chamber at solstice.",tg:["newgrange","solstice","ireland"],cn:["axis","celtic"]},
+{id:246,n:"Beltane Fire",la:55,lo:-6,t:"mythical-place",c:"Celtic",e:0,d:"May Eve. Fire of Bel, god of light.",tg:["beltane","fire","celtic"],cn:["celtic"]},
+{id:247,n:"Samhain Gate",la:55,lo:-6,t:"underworld",c:"Celtic",e:0,d:"October 31. Veil between worlds thins.",tg:["samhain","veil","halloween"],cn:["celtic"]},
+{id:248,n:"Imbolc Flame",la:55,lo:-6,t:"mythical-place",c:"Celtic",e:0,d:"February 1. St. Brigid's day.",tg:["imbolc","brigid","celtic"],cn:["celtic"]},
+{id:249,n:"Lughnasadh Harvest",la:55,lo:-6,t:"mythical-place",c:"Celtic",e:0,d:"August 1. Games and feasts of Lugh.",tg:["lughnasadh","harvest","celtic"],cn:["celtic"]},
+{id:250,n:"Salmon of Knowledge",la:54,lo:-8,t:"mythical-place",c:"Irish",e:0,d:"Fish held all world's knowledge. Fionn burned thumb.",tg:["salmon","knowledge","irish"],cn:["celtic"]},
+{id:251,n:"Pangu",la:35,lo:110,t:"mythical-place",c:"Chinese",e:0,d:"First being. Created world from egg,死后化作万物.",tg:["creation","chinese","giant"],cn:["chinese"]},
+{id:252,n:"Nuwa",la:35,lo:115,t:"mythical-place",c:"Chinese",e:0,d:"Goddess who patched sky with stones after flood.",tg:["goddess","flood","creation"],cn:["flood","chinese"]},
+{id:253,n:"Fuxi",la:35,lo:112,t:"mythical-place",c:"Chinese",e:0,d:"First emperor. Taught humanity fishing and hunting.",tg:["emperor","creation","china"],cn:["chinese"]},
+{id:254,n:"Shennong",la:35,lo:113,t:"mythical-place",c:"Chinese",e:0,d:"Divine farmer. Taught agriculture and medicine.",tg:["agriculture","medicine","china"],cn:["chinese"]},
+{id:255,n:"The Yellow Emperor",la:36,lo:112,t:"mythical-place",c:"Chinese",e:0,d:"Huangdi. Ruled central kingdom. Fought Chi You.",tg:["emperor","huangdi","china"],cn:["chinese"]},
+{id:256,n:"Dragon Kings",la:35,lo:120,t:"mythical-place",c:"Chinese",e:0,d:"Four dragon kings rule seas and storms.",tg:["dragon","sea","chinese"],cn:["chinese","dragon"]},
+{id:257,n:"Queen Mother West",la:35,lo:100,t:"mythical-place",c:"Chinese",e:0,d:"Xi Wangmu. Ruler of immortality. Peaches of eternity.",tg:["immortal","goddess","china"],cn:["chinese","axis"]},
+{id:258,n:"Kunlun Mountain",la:36,lo:85,t:"sacred-site",c:"Chinese",e:0,d:"Western paradise. Home of Queen Mother.",tg:["mountain","paradise","china"],cn:["axis","silk","chinese"]},
+{id:259,n:"Peach Grove",la:36,lo:100,t:"mythical-place",c:"Chinese",e:0,d:"Garden of Queen Mother. Immortal peaches ripen.",tg:["immortal","garden","peach"],cn:["chinese"]},
+{id:260,n:"Eight Immortals",la:35,lo:118,t:"mythical-place",c:"Chinese",e:0,d:"Eight beings achieved immortality. Crossed sea.",tg:["immortal","china","folk"],cn:["chinese"]},
+{id:261,n:"Zhong Kui",la:35,lo:110,t:"mythical-place",c:"Chinese",e:0,d:"Demon queller. Returned from hell.",tg:["demon","china","ghost"],cn:["chinese"]},
+{id:262,n:"Jade Emperor",la:35,lo:120,t:"mythical-place",c:"Chinese",e:0,d:"Ruler of heaven. Most powerful Taoist deity.",tg:["emperor","heaven","taoist"],cn:["chinese"]},
+{id:263,n:"Hou Yi Arrows",la:35,lo:110,t:"mythical-place",c:"Chinese",e:0,d:"Hero shot down nine suns. Wife Chang'e flew to moon.",tg:["sun","archer","moon"],cn:["chinese"]},
+{id:264,n:"Chang'e Moon",la:35,lo:115,t:"mythical-place",c:"Chinese",e:0,d:"Lived on moon after drinking immortality elixir.",tg:["moon","immortal","chang'e"],cn:["axis","chinese"]},
+{id:265,n:"Hou Yi Palace",la:40,lo:95,t:"sacred-site",c:"Chinese",e:1,d:"Where the archer hero lived with his wife.",tg:["palace","archer","china"],cn:["chinese"]},
+{id:266,n:"Jade Rabbit",la:35,lo:115,t:"mythical-place",c:"Chinese",e:0,d:"Pounded elixir on moon. Companion to Chang'e.",tg:["rabbit","moon","china"],cn:["chinese"]},
+{id:267,n:"Three Legged Crow",la:35,lo:110,t:"mythical-place",c:"Chinese",e:0,d:"Lived in sun. Symbol of power and sun.",tg:["crow","sun","china"],cn:["chinese"]},
+{id:268,n:"Nian Beast",la:35,lo:115,t:"mythical-place",c:"Chinese",e:0,d:"Monster ate villagers. Fear of red and noise.",tg:["monster","china","new year"],cn:["chinese"]},
+{id:269,n:"Bai Ze",la:35,lo:120,t:"mythical-place",c:"Chinese",e:0,d:"White deer taught humans about spirits and demons.",tg:["deer","spirit","china"],cn:["chinese"]},
+{id:270,n:"Qilin",la:35,lo:118,t:"mythical-place",c:"Chinese",e:0,d:"Unicorn-like creature. Appears with sages.",tg:["unicorn","sages","china"],cn:["chinese"]},
+{id:271,n:"Phoenix Temple",la:35,lo:116,t:"sacred-site",c:"Chinese",e:1,d:"Where phoenix birds nested.",tg:["phoenix","temple","china"],cn:["chinese"]},
+{id:272,n:"Dragon Gate",la:37,lo:111,t:"mythical-place",c:"Chinese",e:0,d:"Where carp jump to become dragons.",tg:["dragon","carp","china"],cn:["chinese","dragon"]},
+{id:273,n:"Benzaiten",la:35,lo:140,t:"mythical-place",c:"Japanese",e:1,d:"Goddess of water. Brought sutras from India.",tg:["goddess","water","japan"],cn:["japanese"]},
+{id:274,n:"Izanagi and Izanami",la:36,lo:138,t:"mythical-place",c:"Japanese",e:0,d:"Created Japan. Birthed islands and gods.",tg:["creation","japan","gods"],cn:["japanese"]},
+{id:275,n:"Amaterasu",la:34,lo:131,t:"mythical-place",c:"Japanese",e:0,d:"Sun goddess. Ancestor of emperors.",tg:["sun","goddess","japan"],cn:["axis","japanese"]},
+{id:276,n:"Tsukuyomi",la:35,lo:135,t:"mythical-place",c:"Japanese",e:0,d:"Moon god. Killed by Amaterasu in anger.",tg:["moon","god","japan"],cn:["japanese"]},
+{id:277,n:"Susanoo",la:35,lo:135,t:"mythical-place",c:"Japanese",e:0,d:"Storm god. Found sword in tail of Yamata.",tg:["storm","god","japan"],cn:["japanese"]},
+{id:278,n:"Izumo Shrine",la:35,lo:133,t:"sacred-site",c:"Japanese",e:0,d:"Oldest shrine. Home of gods.",tg:["shrine","japan","oldest"],cn:["axis","japanese"]},
+{id:279,n:"Mount Fuji",la:35.4,lo:139,t:"sacred-site",c:"Japanese",e:0,d:"Sacred volcano. Home of fire goddess.",tg:["volcano","sacred","japan"],cn:["axis","japanese"]},
+{id:280,n:"Hachiman",la:35,lo:140,t:"sacred-site",c:"Japanese",e:1,d:"God of war. Patron of warriors.",tg:["war","god","japan"],cn:["japanese"]},
+{id:281,n:"Inari Shrines",la:35,lo:136,t:"sacred-site",c:"Japanese",e:0,d:"Fox spirit shrines. Thousands across Japan.",tg:["fox","shrine","japan"],cn:["japanese"]},
+{id:282,n:"Kitsune",la:35,lo:136,t:"mythical-place",c:"Japanese",e:0,d:"Fox spirits. Tricksters with many tails.",tg:["fox","spirit","japan"],cn:["japanese"]},
+{id:283,n:"Tanuki",la:35,lo:138,t:"mythical-place",c:"Japanese",e:0,d:"Raccoon dog trickster. Master of disguise.",tg:["raccoon","trickster","japan"],cn:["japanese"]},
+{id:284,n:"Tengu",la:35,lo:138,t:"mythical-place",c:"Japanese",e:0,d:"Long-nosed goblins. Mountain guardians.",tg:["goblin","mountain","japan"],cn:["japanese"]},
+{id:285,n:"Yurei",la:35,lo:139,t:"mythical-place",c:"Japanese",e:0,d:"Ghosts of wronged. White clothes, black hair.",tg:["ghost","japan","spirit"],cn:["japanese"]},
+{id:286,n:"Yokai Parade",la:35,lo:138,t:"mythical-place",c:"Japanese",e:0,d:"Festival of supernatural beings.",tg:["yokai","festival","japan"],cn:["japanese"]},
+{id:287,n:"Hannya Mask",la:35,lo:135,t:"mythical-place",c:"Japanese",e:0,d:"Jealous female demon. Horns and fangs.",tg:["demon","mask","japan"],cn:["japanese"]},
+{id:288,n:"Kappa River",la:35,lo:137,t:"mythical-place",c:"Japanese",e:0,d:"Water imp. Dish-headed river demons.",tg:["kappa","water","japan"],cn:["japanese"]},
+{id:289,n:"Tanuki Scroll",la:35,lo:138,t:"mythical-place",c:"Japanese",e:0,d:"Shapeshifter who stole a merchant's money.",tg:["tanuki","trickster","japan"],cn:["japanese"]},
+{id:290,n:"Momotaro",la:35,lo:134,t:"mythical-place",c:"Japanese",e:0,d:"Peach boy. Born from peach, fought demons.",tg:["peach","hero","japan"],cn:["japanese"]},
+{id:291,n:"Urashima Taro",la:36,lo:136,t:"mythical-place",c:"Japanese",e:0,d:"Fisher saved turtle. Visited palace under sea.",tg:["turtle","sea","japan"],cn:["japanese"]},
+{id:292,n:"Bunbuku Chaguma",la:36,lo:138,t:"mythical-place",c:"Japanese",e:0,d:"Tanuki turned into bathtub to repay debt.",tg:["tanuki","bathtub","japan"],cn:["japanese"]},
+{id:293,n:"Fujiyamada",la:35,lo:139,t:"mythical-place",c:"Japanese",e:1,d:"Sacred mountain pass where gods appear.",tg:["mountain","gods","japan"],cn:["japanese"]},
+{id:294,n:"Nara Deer",la:34,lo:136,t:"sacred-site",c:"Japanese",e:1,d:"Sacred deer of Nara. Believed messengers.",tg:["deer","sacred","japan"],cn:["japanese"]},
+{id:295,n:"Itsukushima",la:34,lo:132,t:"sacred-site",c:"Japanese",e:2,d:"Floating torii gate. Shrine on water.",tg:["shrine","floating","japan"],cn:["japanese"]},
+{id:296,n:"Itsukushima Shrine",la:34,lo:132,t:"sacred-site",c:"Japanese",e:2,d:"Torii appears to float at high tide.",tg:["torii","tide","japan"],cn:["japanese"]},
+{id:297,n:"Heiankyo",la:35,lo:136,t:"lost-city",c:"Japanese",e:2,d:"Ancient capital. City of peace.",tg:["capital","heian","japan"],cn:["japanese"]},
+{id:298,n:"Ashikaga Temple",la:37,lo:140,t:"sacred-site",c:"Japanese",e:2,d:"Temple of golden pavilion.",tg:["temple","gold","japan"],cn:["japanese"]},
+{id:299,n:"Kinkaku-ji",la:35,lo:136,t:"sacred-site",c:"Japanese",e:2,d:"Golden pavilion. Burned and rebuilt.",tg:["golden","pavilion","kyoto"],cn:["japanese"]},
+{id:300,n:"Fushimi Inari",la:35,lo:136,t:"sacred-site",c:"Japanese",e:2,d:"10,000 torii gates. Path to summit.",tg:["torii","gates","kyoto"],cn:["japanese"]},
+{id:301,n:"Korean Dragon",la:37,lo:128,t:"mythical-place",c:"Korean",e:0,d:"Yongma. Dragon kings of eastern seas.",tg:["dragon","korea","sea"],cn:["korean","dragon"]},
+{id:302,n:"Dangun Wanggeom",la:38,lo:127,t:"mythical-place",c:"Korean",e:0,d:"Founding king. Son of heaven and bear.",tg:["founder","king","korea"],cn:["korean"]},
+{id:303,n:"Sansin",la:38,lo:127,t:"mythical-place",c:"Korean",e:0,d:"Mountain gods. Guardians of villages.",tg:["mountain","god","korea"],cn:["korean"]},
+{id:304,n:"Gumiho",la:37,lo:128,t:"mythical-place",c:"Korean",e:0,d:"Nine-tailed fox. Can become human.",tg:["fox","nine-tails","korea"],cn:["korean"]},
+{id:305,n:"Jangseung",la:37,lo:127,t:"sacred-site",c:"Korean",e:0,d:"Guardian spirit posts. Village protectors.",tg:["guardian","spirit","korea"],cn:["korean"]},
+{id:306,n:"Sansin-do",la:38,lo:127,t:"sacred-site",c:"Korean",e:1,d:"Painting of mountain god with tiger.",tg:["mountain","painting","korea"],cn:["korean"]},
+{id:307,n:"Korean Tiger",la:37,lo:128,t:"mythical-place",c:"Korean",e:0,d:"Guardian beast. Accompanies mountain gods.",tg:["tiger","mountain","korea"],cn:["korean"]},
+{id:308,n:"Tangnyong",la:37,lo:127,t:"mythical-place",c:"Korean",e:0,d:"Water spirit. Causes floods and storms.",tg:["water","spirit","korea"],cn:["korean"]},
+{id:309,n:"Samshin",la:37,lo:127,t:"mythical-place",c:"Korean",e:0,d:"Three birth goddesses. Control destiny.",tg:["birth","goddess","korea"],cn:["korean"]},
+{id:310,n:"Mago Village",la:38,lo:128,t:"mythical-place",c:"Korean",e:0,d:"Underground paradise. Waiting for return.",tg:["paradise","underground","korea"],cn:["axis","korean"]},
+{id:311,n:"Brahma",la:20,lo:80,t:"mythical-place",c:"Hindu",e:0,d:"Creator god. Four heads face all directions.",tg:["brahma","creator","hindu"],cn:["hindu","axis"]},
+{id:312,n:"Vishnu",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Preserver god. Ten avatars to restore dharma.",tg:["vishnu","preserver","hindu"],cn:["hindu","axis"]},
+{id:313,n:"Shiva",la:30,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Destroyer and transformer. Cosmic dancer.",tg:["shiva","destroyer","hindu"],cn:["hindu","axis"]},
+{id:314,n:"Lakshmi",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Goddess of wealth. Emerged from ocean.",tg:["goddess","wealth","hindu"],cn:["hindu"]},
+{id:315,n:"Saraswati",la:28,lo:77,t:"mythical-place",c:"Hindu",e:0,d:"Goddess of knowledge. Plays veena.",tg:["knowledge","goddess","hindu"],cn:["hindu"]},
+{id:316,n:"Ganesha",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Elephant-headed remover of obstacles.",tg:["elephant","god","hindu"],cn:["hindu"]},
+{id:317,n:"Hanuman",la:28,lo:80,t:"mythical-place",c:"Hindu",e:0,d:"Monkey god. Helped Rama find Sita.",tg:["monkey","ramayana","hindu"],cn:["hindu"]},
+{id:318,n:"Rama",la:28,lo:80,t:"mythical-place",c:"Hindu",e:0,d:"Avatar of Vishnu. Hero of Ramayana.",tg:["rama","avatar","hindu"],cn:["hindu","axis"]},
+{id:319,n:"Sita",la:28,lo:80,t:"mythical-place",c:"Hindu",e:0,d:"Rama's wife. Purified by fire trial.",tg:["sita","rama","hindu"],cn:["hindu"]},
+{id:320,n:"Ravana",la:8,lo:80,t:"mythical-place",c:"Hindu",e:0,d:"Ten-headed demon king. Kidnapped Sita.",tg:["demon"," Lanka","hindu"],cn:["hindu"]},
+{id:321,n:"Krishna",la:22,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Avatar of Vishnu. Played flute for cowherds.",tg:["krishna","flute","hindu"],cn:["hindu","axis"]},
+{id:322,n:"Vrindavan",la:27,lo:78,t:"sacred-site",c:"Hindu",e:0,d:"Krishna's childhood home. Dance with gopis.",tg:["vrindavan","krishna","hindu"],cn:["hindu"]},
+{id:323,n:"Dwarka",la:22,lo:69,t:"sacred-site",c:"Hindu",e:0,d:"Krishna's kingdom. Sunken city.",tg:["dwarka","krishna","sunken"],cn:["flood","hindu"]},
+{id:324,n:"Ayodhya",la:27,lo:82,t:"sacred-site",c:"Hindu",e:0,d:"Rama's birthplace. Sacred city.",tg:["ayodhya","rama","hindu"],cn:["hindu"]},
+{id:325,n:"Lanka",la:8,lo:80,t:"mythical-place",c:"Hindu",e:0,d:"Island kingdom of Ravana. Lanka of gold.",tg:["lanka","gold","demon"],cn:["hindu"]},
+{id:326,n:"Hanuman's Strength",la:15,lo:75,t:"mythical-place",c:"Hindu",e:0,d:"Moved mountains to save Lakshmana.",tg:["hanuman","mountain","hindu"],cn:["hindu"]},
+{id:327,n:"Kailasa",la:32,lo:81,t:"sacred-site",c:"Hindu",e:0,d:"Shiva's mountain home. Centre of world.",tg:["kailasa","shiva","mountain"],cn:["axis","hindu"]},
+{id:328,n:"Ganges Source",la:31,lo:79,t:"sacred-site",c:"Hindu",e:0,d:"Gangotri glacier. Where Ganga descended.",tg:["ganges","source","glacier"],cn:["hindu","axis"]},
+{id:329,n:"Varanasi Ghats",la:25,lo:83,t:"sacred-site",c:"Hindu",e:0,d:"Burning ghats. Pilgrims seek moksha.",tg:["ghats","burning","hindu"],cn:["hindu"]},
+{id:330,n:"Brahmapur",la:23,lo:77,t:"sacred-site",c:"Hindu",e:0,d:"Where Brahmaputra emerged from sage's curse.",tg:["river","curse","hindu"],cn:["hindu"]},
+{id:331,n:"Brahma Temple",la:27,lo:77,t:"sacred-site",c:"Hindu",e:0,d:"Only temple dedicated to Brahma.",tg:["brahma","temple","hindu"],cn:["hindu"]},
+{id:332,n:"Varaha Avatar",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Boar incarnation. Saved earth from demon.",tg:["varaha","boar","avatar"],cn:["hindu"]},
+{id:333,n:"Narasimha",la:15,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Man-lion avatar. Tore demon apart.",tg:["narasimha","lion","avatar"],cn:["hindu"]},
+{id:334,n:"Matsya Fish",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"First avatar. Saved Vedas from flood.",tg:["fish","flood","avatar"],cn:["flood","hindu"]},
+{id:335,n:"Kurma Tortoise",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Second avatar. Held mountain on back.",tg:["tortoise","mountain","avatar"],cn:["hindu"]},
+{id:336,n:"Vamana Dwarf",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Fifth avatar. Measured universe in steps.",tg:["dwarf","universe","avatar"],cn:["hindu"]},
+{id:337,n:"Kalki Horse",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Tenth avatar. Will end dark age.",tg:["kalki","horse","avatar"],cn:["hindu","axis"]},
+{id:338,n:"Ganga River",la:25,lo:83,t:"sacred-site",c:"Hindu",e:0,d:"Holy river from heaven. Flowing Ganga.",tg:["ganga","river","holy"],cn:["hindu"]},
+{id:339,n:"Yamuna River",la:27,lo:78,t:"sacred-site",c:"Hindu",e:0,d:"Sister of Yama. Krishna played on banks.",tg:["yamuna","krishna","river"],cn:["hindu"]},
+{id:340,n:"Goddess Durga",la:22,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Warrior goddess. Killed buffalo demon.",tg:["durga","warrior","goddess"],cn:["hindu"]},
+{id:341,n:"Kali",la:23,lo:88,t:"mythical-place",c:"Hindu",e:0,d:"Dark mother. Destroyed demon army.",tg:["kali","dark","goddess"],cn:["hindu"]},
+{id:342,n:"Kamadhenu",la:22,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Wish-fulfilling cow. Created by gods.",tg:["cow","wish","hindu"],cn:["hindu"]},
+{id:343,n:"Kalpavriksha",la:22,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"World tree. Grants all desires.",tg:["tree","desire","hindu"],cn:["hindu","axis"]},
+{id:344,n:"Airavata",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Cosmic elephant. Mount of Indra.",tg:["elephant","indra","mount"],cn:["hindu"]},
+{id:345,n:"Garuda",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Eagle man. Vehicle of Vishnu.",tg:["garuda","eagle","vishnu"],cn:["hindu","axis"]},
+{id:346,n:"Naga Serpents",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Snake people. Dwell in underworld.",tg:["naga","snake","underworld"],cn:["hindu"]},
+{id:347,n:"Rakshasa",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Demon beings. Enemies of gods and humans.",tg:["demon","hindu","folk"],cn:["hindu"]},
+{id:348,n:"Apsaras",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Divine nymphs. Dancers of heaven.",tg:["nymph","dance","heaven"],cn:["hindu"]},
+{id:349,n:"Gandharvas",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Celestial musicians. Guard Mount Meru.",tg:["musician","heaven","hindu"],cn:["hindu"]},
+{id:350,n:"Yaksha",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Nature spirits. Guardians of treasures.",tg:["spirit","nature","hindu"],cn:["hindu"]},
+{id:351,n:"Pushpaka Vimana",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Flying palace. Ravana's aircraft.",tg:["flying","palace","hindu"],cn:["hindu"]},
+{id:352,n:"Chakra",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Vishnu's discus. Returns when thrown.",tg:["chakra","vishnu","weapon"],cn:["hindu"]},
+{id:353,n:"Trishula",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Shiva's trident. Destroys all illusion.",tg:["trishula","shiva","trident"],cn:["hindu"]},
+{id:354,n:"Sudarshana",la:20,lo:78,t:"mythical-place",c:"Hindu",e:0,d:"Vishnu's discus. Pure cosmic fire.",tg:["sudarshana","discus","fire"],cn:["hindu"]},
+{id:355,n:"Kailasha Parvata",la:32,lo:81,t:"sacred-site",c:"Buddhist",e:0,d:"Mount Kailash. Pilgrimage for four faiths.",tg:["kailash","pilgrimage","buddhist"],cn:["axis","buddhist"]},
+{id:356,n:"Buddha's Birth",la:27,lo:83,t:"sacred-site",c:"Buddhist",e:0,d:"Lumbini garden. Queen Maya gave birth.",tg:["birth","lumbini","buddha"],cn:["buddhist"]},
+{id:357,n:"Bodhi Tree",la:25,lo:85,t:"sacred-site",c:"Buddhist",e:0,d:"Where Buddha attained enlightenment.",tg:["bodhi","enlightenment","tree"],cn:["axis","buddhist"]},
+{id:358,n:"Sarnath",la:25,lo:83,t:"sacred-site",c:"Buddhist",e:1,d:"First sermon. Set wheel of dharma.",tg:["sermon","dharma","sarnath"],cn:["buddhist"]},
+{id:359,n:"Kushinagar",la:27,lo:84,t:"sacred-site",c:"Buddhist",e:2,d:"Where Buddha entered parinirvana.",tg:["nirvana","death","buddha"],cn:["buddhist"]},
+{id:360,n:"Rajgir",la:25,lo:85,t:"sacred-site",c:"Buddhist",e:1,d:"Where Buddha taught. Hot springs.",tg:["rajgir","teaching","buddha"],cn:["buddhist"]},
+{id:361,n:"Sravasti",la:27,lo:82,t:"sacred-site",c:"Buddhist",e:1,d:"Site of Buddha's miracle of multiplication.",tg:["miracle","buddha","sravasti"],cn:["buddhist"]},
+{id:362,n:"Jetavana",la:27,lo:82,t:"sacred-site",c:"Buddhist",e:1,d:"Monastery garden. Buddha spent 25 rains.",tg:["monastery","garden","buddha"],cn:["buddhist"]},
+{id:363,n:"Kalinga",la:20,lo:86,t:"mythical-place",c:"Buddhist",e:1,d:"Where Emperor Ashoka was transformed.",tg:["ashoka","kalinga","buddhist"],cn:["buddhist"]},
+{id:364,n:"Mahabodhi",la:25,lo:85,t:"sacred-site",c:"Buddhist",e:2,d:"Temple built at enlightenment site.",tg:["temple","enlightenment","buddha"],cn:["buddhist","axis"]},
+{id:365,n:"Druk Padma",la:28,lo:91,t:"sacred-site",c:"Buddhist",e:2,d:"Tiger's Nest. Cliff monastery.",tg:["monastery","cliff","tiger"],cn:["buddhist"]},
+{id:366,n:"Potala Palace",la:29,lo:92,t:"sacred-site",c:"Buddhist",e:2,d:"Dalai Lama's palace. Spiritual center.",tg:["potala","dalai","tibet"],cn:["axis","buddhist"]},
+{id:367,n:"Jokhang Temple",la:30,lo:91,t:"sacred-site",c:"Buddhist",e:2,d:"Oldest temple in Tibet. Jowo statue.",tg:["temple","tibet","oldest"],cn:["buddhist"]},
+{id:368,n:"Samye Monastery",la:29,lo:91,t:"sacred-site",c:"Buddhist",e:2,d:"First Buddhist monastery in Tibet.",tg:["monastery","first","tibet"],cn:["buddhist"]},
+{id:369,n:"Buddhist Hell",la:30,lo:90,t:"underworld",c:"Buddhist",e:0,d:"Eight cold hells and eight hot hells.",tg:["hell","buddhist","underworld"],cn:["buddhist"]},
+{id:370,n:"Tara Goddess",la:29,lo:92,t:"mythical-place",c:"Buddhist",e:0,d:"Green and White Tara. Compassionate mothers.",tg:["tara","goddess","compassion"],cn:["buddhist"]},
+{id:371,n:"Chenrezig",la:29,lo:92,t:"mythical-place",c:"Buddhist",e:0,d:"Avalokiteshvara. Buddha of compassion.",tg:["compassion","buddha","tibet"],cn:["buddhist","axis"]},
+{id:372,n:"Maitreya",la:29,lo:92,t:"mythical-place",c:"Buddhist",e:0,d:"Future Buddha. Will come when world ends.",tg:["maitreya","future","buddha"],cn:["buddhist"]},
+{id:373,n:"Padmasambhava",la:27,lo:89,t:"mythical-place",c:"Buddhist",e:1,d:"Lotus Born. Introduced Buddhism to Tibet.",tg:["padmasambhava","tibet","buddhism"],cn:["buddhist"]},
+{id:374,n:"Manjushri",la:29,lo:92,t:"mythical-place",c:"Buddhist",e:0,d:"Buddha of wisdom. Sword cuts ignorance.",tg:["wisdom","sword","buddha"],cn:["buddhist"]},
+{id:375,n:"Amitabha",la:29,lo:92,t:"mythical-place",c:"Buddhist",e:0,d:"Buddha of infinite light. Western Paradise.",tg:["amitabha","paradise","pure land"],cn:["buddhist","axis"]},
+{id:376,n:"Sukhavati",la:29,lo:92,t:"mythical-place",c:"Buddhist",e:0,d:"Western Pure Land. Rebirth paradise.",tg:["pure land","paradise","buddha"],cn:["buddhist"]},
+{id:377,n:"Bhumisphara",la:20,lo:78,t:"mythical-place",c:"Buddhist",e:0,d:"Jewel that grants wishes when touched.",tg:["jewel","wish","buddhist"],cn:["buddhist"]},
+{id:378,n:"Naga Realm",la:15,lo:80,t:"underworld",c:"Buddhist",e:0,d:"Underwater kingdom of serpent spirits.",tg:["naga","underwater","serpent"],cn:["buddhist"]},
+{id:379,n:"Gandhara Art",la:34,lo:72,t:"sacred-site",c:"Buddhist",e:1,d:"Where first Buddha images were created.",tg:["buddha","art","gandhara"],cn:["buddhist","silk"]},
+{id:380,n:"Ajanta Caves",la:20,lo:76,t:"sacred-site",c:"Buddhist",e:1,d:"Buddhist paintings and caves.",tg:["caves","painting","buddhist"],cn:["buddhist"]},
+{id:381,n:"Ellora Caves",la:20,lo:75,t:"sacred-site",c:"Buddhist",e:1,d:"Rock-cut temples. Hindu, Buddhist, Jain.",tg:["caves","temples","ellora"],cn:["buddhist","hindu"]},
+{id:382,n:"Elephanta Caves",la:19,lo:73,t:"sacred-site",c:"Hindu",e:1,d:"Caves of Shiva. Trimurti sculpture.",tg:["caves","shiva","mumbai"],cn:["hindu"]},
+{id:383,n:"Khajuraho",la:25,lo:80,t:"sacred-site",c:"Hindu",e:1,d:"Temple city with celestial sculptures.",tg:["temple","sculpture","khajuraho"],cn:["hindu"]},
+{id:384,n:"Konark Sun Temple",la:20,lo:86,t:"sacred-site",c:"Hindu",e:1,d:"Sun temple shaped like chariot.",tg:["sun","temple","chariot"],cn:["hindu","axis"]},
+{id:385,n:"Lingam",la:22,lo:73,t:"sacred-site",c:"Hindu",e:0,d:"Symbol of Shiva. Millions across India.",tg:["lingam","shiva","symbol"],cn:["hindu"]},
+{id:386,n:"Char Dham",la:30,lo:79,t:"sacred-site",c:"Hindu",e:0,d:"Four sacred pilgrimage sites.",tg:["pilgrimage","four","hindu"],cn:["hindu","axis"]},
+{id:387,n:"Badrinath",la:30,lo:79,t:"sacred-site",c:"Hindu",e:0,d:"Vishnu's northern seat. Closed in winter.",tg:["badrinath","vishnu","pilgrimage"],cn:["hindu","axis"]},
+{id:388,n:"Kedarnath",la:31,lo:79,t:"sacred-site",c:"Hindu",e:0,d:"Shiva's shrine. Snow-covered temple.",tg:["kedarnath","shiva","mountain"],cn:["hindu","axis"]},
+{id:389,n:"Rameshwaram",la:9,lo:79,t:"sacred-site",c:"Hindu",e:0,d:"Where Rama worshipped after Lanka war.",tg:["rameshwaram","rama","shiva"],cn:["hindu"]},
+{id:390,n:"Dwarkadish",la:22,lo:69,t:"sacred-site",c:"Hindu",e:0,d:"Krishna's temple in Dwarka.",tg:["dwarka","krishna","temple"],cn:["hindu"]},
+{id:391,n:"Puri Jagannath",la:20,lo:86,t:"sacred-site",c:"Hindu",e:0,d:"Temple of Vishnu as Lord of Universe.",tg:["puri","jagannath","temple"],cn:["hindu"]},
+{id:392,n:"Baba Budan",la:12,lo:76,t:"sacred-site",c:"Hindu",e:1,d:"Cave of seven peaks. Sufi saint.",tg:["sufi","cave","india"],cn:["silk","indian"]},
+{id:393,n:"Gurjara Temples",la:24,lo:73,t:"sacred-site",c:"Hindu",e:1,d:"Group of temples at Abu.",tg:["temples","abu","gujarat"],cn:["hindu"]},
+{id:394,n:"Hampi",la:15,lo:76,t:"sacred-site",c:"Hindu",e:2,d:"Vijayanagara ruins. Kishkindha.",tg:["hampi","ruins","kishkindha"],cn:["hindu"]},
+{id:395,n:"Meenakshi",la:9,lo:78,t:"sacred-site",c:"Hindu",e:2,d:"Temple of fish-eyed goddess.",tg:["meenakshi","temple","madurai"],cn:["hindu"]},
+{id:396,n:"Brihadeeswarar",la:11,lo:79,t:"sacred-site",c:"Hindu",e:2,d:"Big temple. Chola masterpiece.",tg:["temple","chola","tanjore"],cn:["hindu"]},
+{id:397,n:"Ranganathaswamy",la:11,lo:78,t:"sacred-site",c:"Hindu",e:2,d:"Largest temple. Srirangam island.",tg:["temple","largest","tamil"],cn:["hindu"]},
+{id:398,n:"Thanjavur",la:11,lo:79,t:"sacred-site",c:"Hindu",e:2,d:"Temple of Chola kings. Golden dome.",tg:["temple","chola","golden"],cn:["hindu"]},
+{id:399,n:"Chidambaram",la:12,lo:80,t:"sacred-site",c:"Hindu",e:0,d:"Temple of cosmic consciousness.",tg:["chidambaram","consciousness","shiva"],cn:["hindu"]},
+{id:400,n:"Tirupati",la:13,lo:79,t:"sacred-site",c:"Hindu",e:2,d:"Tirumala temple. Most visited.",tg:["tirupati","temple","visited"],cn:["hindu"]},
+{id:401,n:"Jagannath Puri",la:20,lo:86,t:"sacred-site",c:"Hindu",e:0,d:"One of Char Dham. Temple of Vishnu.",tg:["puri","vishnu","chardham"],cn:["hindu","axis"]},
+{id:402,n:"Ram Sethu",la:9,lo:79,t:"sacred-site",c:"Hindu",e:0,d:"Bridge to Lanka. Rama's construction.",tg:["bridge","rama","lanka"],cn:["hindu"]},
+{id:403,n:"Dhanushkodi",la:9,lo:79,t:"sacred-site",c:"Hindu",e:2,d:"Where Rama shot arrow. Tip of India.",tg:["dhanushkodi","rama","tip"],cn:["hindu"]},
+{id:404,n:"Baba Budan Gadi",la:12,lo:76,t:"sacred-site",c:"Sufi",e:2,d:"Sufi shrine. Seven peaks.",tg:["sufi","shrine","karnataka"],cn:["silk","indian"]},
+{id:405,n:"Golden Temple",la:31,lo:75,t:"sacred-site",c:"Sikh",e:3,d:"Harmandir Sahib. Sikh holiest site.",tg:["golden","sikh","amritsar"],cn:["indian"]},
+{id:406,n:"Nankana Sahib",la:32,lo:74,t:"sacred-site",c:"Sikh",e:3,d:"Birthplace of Guru Nanak.",tg:["nanak","birthplace","pakistan"],cn:["indian"]},
+{id:407,n:"Hemkund Sahib",la:30,lo:80,t:"sacred-site",c:"Sikh",e:2,d:"Guru's lake. High mountain shrine.",tg:["hemkund","guru","lake"],cn:["indian"]},
+{id:408,n:"Takht Sahib",la:31,lo:75,t:"sacred-site",c:"Sikh",e:2,d:"Throne of Guru. Golden Temple.",tg:["takht","guru","throne"],cn:["indian"]},
+{id:409,n:"Harmandir Sahib",la:31,lo:75,t:"sacred-site",c:"Sikh",e:3,d:"Golden Temple. Kitchen feeds thousands daily.",tg:["golden","temple","feeding"],cn:["indian"]},
+{id:410,n:"Gurudwara Bangla",la:28,lo:77,t:"sacred-site",c:"Sikh",e:3,d:"Where Guru Granth was compiled.",tg:["guru","granth","sikh"],cn:["indian"]},
+{id:411,n:"Buddha Smriti",la:25,lo:83,t:"sacred-site",c:"Buddhist",e:3,d:"Park where Buddha taught urbanites.",tg:["buddha","park","delhi"],cn:["buddhist","indian"]},
+{id:412,n:"Fatehpur Sikri",la:27,lo:78,t:"sacred-site",c:"Mughal",e:3,d:"Akbar's city. Buland Darwaza.",tg:["fatehpur","akbar","mughal"],cn:["indian"]},
+{id:413,n:"Ajmer Sharif",la:27,lo:75,t:"sacred-site",c:"Sufi",e:2,d:"Moinuddin Chishti shrine.",tg:["sufi","shrine","ajmer"],cn:["silk","indian"]},
+{id:414,n:"Nizamuddin Dargah",la:29,lo:77,t:"sacred-site",c:"Sufi",e:2,d:"Amir Khusrau's teacher. Music.",tg:["sufi","music","delhi"],cn:["indian"]},
+{id:415,n:"Rishikesh",la:30,lo:78,t:"sacred-site",c:"Hindu",e:2,d:"Yoga capital. Beatles visited ashram.",tg:["yoga","rishikesh","beatles"],cn:["hindu"]},
+{id:416,n:"Haridwar",la:30,lo:78,t:"sacred-site",c:"Hindu",e:0,d:"Ganga enters plains. Kumbh Mela.",tg:["ganga","haridwar","kumbh"],cn:["hindu"]},
+{id:417,n:"Allahabad",la:25,lo:82,t:"sacred-site",c:"Hindu",e:0,d:"Triveni sangam. Three rivers meet.",tg:["sangam","rivers","allahabad"],cn:["hindu","axis"]},
+{id:418,n:"Prayagraj",la:25,lo:82,t:"sacred-site",c:"Hindu",e:3,d:"Kumbh Mela site. 100 million pilgrims.",tg:["kumbh","mela","prayagraj"],cn:["hindu"]},
+{id:419,n:"Nashik",la:20,lo:74,t:"sacred-site",c:"Hindu",e:0,d:"Where Rama killed the demon king.",tg:["nashik","rama","demon"],cn:["hindu"]},
+{id:420,n:"Ujjain",la:23,lo:76,t:"sacred-site",c:"Hindu",e:0,d:"Kumbh Mela site. Zero longitude.",tg:["ujjain","kumbh","longitude"],cn:["hindu","axis"]},
+{id:421,n:"Somnath",la:21,lo:71,t:"sacred-site",c:"Hindu",e:0,d:"First of twelve jyotirlingas.",tg:["somnath","shiva","temple"],cn:["hindu","silk"]},
+{id:422,n:"Dwaraka",la:22,lo:69,t:"sacred-site",c:"Hindu",e:2,d:"Krishna's sunken kingdom.",tg:["dwaraka","krishna","sunken"],cn:["hindu","flood"]},
+{id:423,n:"Girgaon",la:19,lo:73,t:"sacred-site",c:"Hindu",e:0,d:"Last son of Shiva walked here.",tg:["girgaon","shiva","gujarat"],cn:["hindu"]},
+{id:424,n:"Somanatha Temple",la:21,lo:71,t:"sacred-site",c:"Hindu",e:1,d:"Shiva temple. Attacked many times.",tg:["somanatha","shiva","destruction"],cn:["hindu"]},
+{id:425,n:"Rameshwaram Temple",la:9,lo:79,t:"sacred-site",c:"Hindu",e:1,d:"Rama shrine with longest corridor.",tg:["corridor","longest","temple"],cn:["hindu"]},
+{id:426,n:"Madhukeshwara",la:15,lo:75,t:"sacred-site",c:"Hindu",e:1,d:"Temple where Shiva ate poison.",tg:["shiva","poison","karnataka"],cn:["hindu"]},
+{id:427,n:"Sringeri Sharada",la:13,lo:75,t:"sacred-site",c:"Hindu",e:1,d:"First Shankaracharya monastery.",tg:["monastery","shankara","karnataka"],cn:["hindu"]},
+{id:428,n:"Horanadu",la:14,lo:75,t:"sacred-site",c:"Hindu",e:2,d:"Adi Shankaracharya's maternal home.",tg:["shankara","horanadu","temple"],cn:["hindu"]},
+{id:429,n:"Kalady",la:10,lo:76,t:"sacred-site",c:"Hindu",e:2,d:"Birthplace of Adi Shankaracharya.",tg:["shankara","birthplace","kerala"],cn:["hindu"]},
+{id:430,n:"Guruvayur",la:11,lo:76,t:"sacred-site",c:"Hindu",e:1,d:"Krishna temple. Elephant festival.",tg:["krishna","temple","kerala"],cn:["hindu"]},
+{id:431,n:"Sabarimala",la:9,lo:77,t:"sacred-site",c:"Hindu",e:2,d:"Ayappan's temple. Millions pilgrimage.",tg:["ayyappa","pilgrimage","kerala"],cn:["hindu"]},
+{id:432,n:"Padmanabhaswamy",la:8,lo:77,t:"sacred-site",c:"Hindu",e:2,d:"Temple with billions in gold.",tg:["gold","temple","treasure"],cn:["hindu"]},
+{id:433,n:"Kanyakumari",la:8,lo:78,t:"sacred-site",c:"Hindu",e:0,d:"Tip of India. Three seas meet.",tg:["kanyakumari","tip","three seas"],cn:["hindu","axis"]},
+{id:434,n:"Vivekananda Rock",la:8,lo:77,t:"sacred-site",c:"Hindu",e:3,d:"Where Vivekananda meditated.",tg:["vivekananda","rock","meditation"],cn:["hindu"]},
+{id:435,n:"Ramanathaswamy",la:9,lo:79,t:"sacred-site",c:"Hindu",e:2,d:"Temple with longest pillared hall.",tg:["pillars","longest","rameswaram"],cn:["hindu"]},
+{id:436,n:"Chennai Temple",la:13,lo:80,t:"sacred-site",c:"Hindu",e:2,d:"Kapaleeshwarar temple. Nataraja.",tg:["kapaleeshwarar","chennai","shiva"],cn:["hindu"]},
+{id:437,n:"Tiruvannamalai",la:12,lo:79,t:"sacred-site",c:"Hindu",e:0,d:" Arunachaleshvara. Lingam of fire.",tg:["fire","lingam","tiruvannamalai"],cn:["hindu","axis"]},
+{id:438,n:"Kanchipuram",la:12,lo:80,t:"sacred-site",c:"Hindu",e:0,d:"City of temples. Ekambareshwarar.",tg:["temples","city","kanchipuram"],cn:["hindu"]},
+{id:439,n:"Mahabalipuram",la:12,lo:80,t:"sacred-site",c:"Hindu",e:1,d:"Shore temple. Pallava carvings.",tg:["shore","temple","pallava"],cn:["hindu"]},
+{id:440,n:"Pattadakal",la:16,lo:76,t:"sacred-site",c:"Hindu",e:1,d:"Chalukya temples. World heritage.",tg:["chalukya","temples","karnataka"],cn:["hindu"]},
+{id:441,n:"Aihole",la:17,lo:76,t:"sacred-site",c:"Hindu",e:1,d:"Cradle of Hindu temple architecture.",tg:["temple","architecture","karnataka"],cn:["hindu"]},
+{id:442,n:"Badami",la:16,lo:75,t:"sacred-site",c:"Hindu",e:1,d:"Cave temples. Chalukya capital.",tg:["caves","chalukya","badami"],cn:["hindu"]},
+{id:443,n:"Belur",la:13,lo:76,t:"sacred-site",c:"Hindu",e:2,d:"Chennakeshava temple. Hoysala art.",tg:["temple","hoysala","belur"],cn:["hindu"]},
+{id:444,n:"Halebidu",la:13,lo:76,t:"sacred-site",c:"Hindu",e:2,d:"Hoysala temples. Star shaped.",tg:["hoysala","star","temples"],cn:["hindu"]},
+{id:445,n:"Shravanabelagola",la:12,lo:76,t:"sacred-site",c:"Jain",e:0,d:"Gommateshwara statue. Naked Bahubali.",tg:["jain","statue","bahubali"],cn:["hindu"]},
+{id:446,n:"Mount Shasta",la:41,lo:-122,t:"mythical-place",c:"Native American",e:0,d:"Lemurian survivors live inside.",tg:["lemuria","mountain","survivors"],cn:["north-america"]},
+{id:447,n:"Hollow Earth",la:90,lo:0,t:"underworld",c:"Various",e:0,d:"World is hollow. Inner sun illuminates.",tg:["hollow","earth","inner sun"],cn:["axis"]},
+{id:448,n:"Sundaland",la:0,lo:110,t:"lost-city",c:"Southeast Asian",e:0,d:"Lost continent during ice age.",tg:["lost","continent","sundaland"],cn:["southeast-asia"]},
+{id:449,n:"Sukhothai Buddha",la:17,lo:100,t:"sacred-site",c:"Thai",e:2,d:"Reclining Buddha of Sukhothai.",tg:["buddha","reclining","thai"],cn:["southeast-asia"]},
+{id:450,n:"Angkor Thom",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Last Khmer capital. Bayon faces.",tg:["angkor","khmer","bayon"],cn:["southeast-asia"]},
+{id:451,n:"Ta Prohm",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Temple swallowed by jungle.",tg:["jungle","temple","angkor"],cn:["southeast-asia"]},
+{id:452,n:"Banteay Srei",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Women's citadel. Pink sandstone.",tg:["sandstone","carving","angkor"],cn:["southeast-asia"]},
+{id:453,n:"Preah Vihear",la:14,lo:105,t:"sacred-site",c:"Khmer",e:2,d:"Temple on cliff. Disputed border.",tg:["temple","cliff","dispute"],cn:["southeast-asia"]},
+{id:454,n:"Bagan Temples",la:21,lo:95,t:"sacred-site",c:"Burmese",e:2,d:"10,000 temples across plain.",tg:["temples","bagan","myanmar"],cn:["southeast-asia"]},
+{id:455,n:"Shwedagon",la:17,lo:96,t:"sacred-site",c:"Burmese",e:2,d:"Golden pagoda. Buddha's hairs.",tg:["pagoda","golden","yangon"],cn:["southeast-asia"]},
+{id:456,n:"Bali Temples",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:2,d:"Island of temples. Pura Besakih.",tg:["bali","temples","pura"],cn:["southeast-asia"]},
+{id:457,n:"Borobudur",la:-8,lo:110,t:"sacred-site",c:"Javanese",e:2,d:"Largest Buddhist temple.",tg:["buddhist","temple","java"],cn:["axis","southeast-asia"]},
+{id:458,n:"Prambanan",la:-8,lo:111,t:"sacred-site",c:"Javanese",e:2,d:"Hindu temple complex.",tg:["hindu","temple","java"],cn:["southeast-asia"]},
+{id:459,n:"Mount Batur",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:0,d:"Volcano. Temple on crater rim.",tg:["volcano","temple","bali"],cn:["southeast-asia"]},
+{id:460,n:"Lake Batur",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:0,d:"Crater lake. Ceremonial island.",tg:["lake","crater","bali"],cn:["southeast-asia"]},
+{id:461,n:"Pura Besakih",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:2,d:"Mother temple. 23 separate temples.",tg:["mother","temple","bali"],cn:["southeast-asia"]},
+{id:462,n:"Tanah Lot",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:2,d:"Temple on sea rock.",tg:["temple","sea","rock"],cn:["southeast-asia"]},
+{id:463,n:"Uluwatu",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:2,d:"Cliff temple. Kecak dance.",tg:["cliff","temple","kecak"],cn:["southeast-asia"]},
+{id:464,n:"Goa Gajah",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:1,d:"Elephant cave temple.",tg:["cave","elephant","bali"],cn:["southeast-asia"]},
+{id:465,n:"Ulun Danu",la:-8,lo:115,t:"sacred-site",c:"Balinese",e:2,d:"Temple on lake. Water temple.",tg:["lake","temple","bali"],cn:["southeast-asia"]},
+{id:466,n:"Komodo Island",la:-8,lo:120,t:"mythical-place",c:"Indonesian",e:0,d:"Home of giant dragons.",tg:["dragon","komodo","indonesia"],cn:["southeast-asia","dragon"]},
+{id:467,n:"Mount Bromo",la:-8,lo:113,t:"sacred-site",c:"Javanese",e:2,d:"Sea of sand. Temple against volcano.",tg:["volcano","bromo","java"],cn:["southeast-asia"]},
+{id:468,n:"Merapi",la:-7,lo:110,t:"sacred-site",c:"Javanese",e:0,d:"Sacred volcano. Many eruptions.",tg:["volcano","merapi","java"],cn:["southeast-asia"]},
+{id:469,n:"Cameron Highlands",la:4,lo:102,t:"mythical-place",c:"Malaysian",e:0,d:"Cameron is ghost woman who died.",tg:["ghost","cameron","malaysia"],cn:["southeast-asia"]},
+{id:470,n:"Mount Kinabalu",la:6,lo:117,t:"sacred-site",c:"Malaysian",e:0,d:"Sacred mountain. Spirit birds.",tg:["mountain","sacred","borneo"],cn:["axis","southeast-asia"]},
+{id:471,n:"Niah Caves",la:3,lo:114,t:"sacred-site",c:"Borneo",e:0,d:"Cave paintings. 40,000 years old.",tg:["caves","paintings","borneo"],cn:["southeast-asia"]},
+{id:472,n:"Mulu Caves",la:4,lo:114,t:"sacred-site",c:"Borneo",e:2,d:"Largest cave chamber on Earth.",tg:["caves","largest","borneo"],cn:["southeast-asia"]},
+{id:473,n:"Luang Prabang",la:20,lo:103,t:"sacred-site",c:"Laotian",e:2,d:"Royal capital. Morning alms.",tg:["temples","laos","alms"],cn:["southeast-asia"]},
+{id:474,n:"Plain of Jars",la:20,lo:103,t:"sacred-site",c:"Laotian",e:1,d:"Thousands of stone jars. Unknown purpose.",tg:["jars","stone","laos"],cn:["southeast-asia"]},
+{id:475,n:"Wat Phu",la:15,lo:106,t:"sacred-site",c:"Laotian",e:1,d:"Khmer temple. Mountain backdrop.",tg:["khmer","temple","laos"],cn:["southeast-asia"]},
+{id:476,n:"Angkor Wat Sunrise",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Temple reflected in lotus pond.",tg:["sunrise","angkor","reflection"],cn:["southeast-asia","axis"]},
+{id:477,n:"Kampong Phluk",la:13,lo:104,t:"mythical-place",c:"Khmer",e:2,d:"Floating village on stilts.",tg:["floating","village","angkor"],cn:["southeast-asia"]},
+{id:478,n:"Tonle Sap",la:13,lo:104,t:"sacred-site",c:"Khmer",e:0,d:"Great lake. Reverses flow.",tg:["lake","reverses","cambodia"],cn:["flood","southeast-asia"]},
+{id:479,n:"Mekong River",la:15,lo:106,t:"sacred-site",c:"Southeast Asian",e:0,d:"Naga serpents live in river.",tg:["mekong","naga","river"],cn:["southeast-asia"]},
+{id:480,n:"Naga Palace",la:15,lo:103,t:"underworld",c:"Laotian",e:0,d:"Underwater palace of serpent king.",tg:["naga","palace","underwater"],cn:["southeast-asia","dragon"]},
+{id:481,n:"Wat Phra Kaew",la:14,lo:100,t:"sacred-site",c:"Thai",e:2,d:"Emerald Buddha temple.",tg:["emerald","buddha","bangkok"],cn:["southeast-asia","axis"]},
+{id:482,n:"Wat Arun",la:14,lo:100,t:"sacred-site",c:"Thai",e:2,d:"Temple of dawn. Porcelain spires.",tg:["dawn","temple","bangkok"],cn:["southeast-asia"]},
+{id:483,n:"Wat Pho",la:14,lo:100,t:"sacred-site",c:"Thai",e:2,d:"Reclining Buddha. Massage school.",tg:["reclining","buddha","bangkok"],cn:["southeast-asia"]},
+{id:484,n:"Doi Suthep",la:19,lo:99,t:"sacred-site",c:"Thai",e:2,d:"Mountain temple. Golden pagoda.",tg:["mountain","temple","chiang mai"],cn:["southeast-asia"]},
+{id:485,n:"Phra That Doi Tung",la:20,lo:100,t:"sacred-site",c:"Thai",e:1,d:"Sacred relic of the Buddha.",tg:["relic","buddha","chiang rai"],cn:["southeast-asia"]},
+{id:486,n:"Ayutthaya",la:14,lo:101,t:"lost-city",c:"Thai",e:2,d:"Old capital. Burned by Burmese.",tg:["ayutthaya","capital","burmese"],cn:["southeast-asia"]},
+{id:487,n:"Sukhothai",la:17,lo:100,t:"sacred-site",c:"Thai",e:2,d:"Old Thai capital. Buddha images.",tg:["sukhothai","capital","buddha"],cn:["southeast-asia"]},
+{id:488,n:"Phimai",la:15,lo:102,t:"sacred-site",c:"Thai",e:1,d:"Khmer temple in Thailand.",tg:["khmer","temple","nakhon ratchasima"],cn:["southeast-asia"]},
+{id:489,n:"Phnom Kulen",la:14,lo:104,t:"sacred-site",c:"Khmer",e:1,d:"Sacred mountain. Birthplace of Angkor.",tg:["mountain","birthplace","angkor"],cn:["southeast-asia","axis"]},
+{id:490,n:"Roluos Temples",la:13,lo:104,t:"sacred-site",c:"Khmer",e:1,d:"First Angkor temples.",tg:["first","angkor","temples"],cn:["southeast-asia"]},
+{id:491,n:"Mebon Temples",la:13,lo:104,t:"sacred-site",c:"Khmer",e:1,d:"Island temples in baray.",tg:["island","temple","angkor"],cn:["southeast-asia"]},
+{id:492,n:"Ta Som",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Jungle temple. Giant faces.",tg:["jungle","faces","angkor"],cn:["southeast-asia"]},
+{id:493,n:"Preah Khan",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Jayavarman's temple. Hall of dancers.",tg:["dancers","angkor","temple"],cn:["southeast-asia"]},
+{id:494,n:"Neak Pean",la:13,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Temple on island. Healing waters.",tg:["healing","waters","angkor"],cn:["southeast-asia"]},
+{id:495,n:"Banteay Chhmar",la:14,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Remote temple. Faces of Jayavarman.",tg:["remote","faces","angkor"],cn:["southeast-asia"]},
+{id:496,n:"Sambor Prei Kuk",la:13,lo:105,t:"sacred-site",c:"Khmer",e:1,d:"Pre-Angkorian complex.",tg:["pre-angkor","complex","cambodia"],cn:["southeast-asia"]},
+{id:497,n:"Koh Ker",la:14,lo:104,t:"sacred-site",c:"Khmer",e:2,d:"Remote temple. Seven-headed Naga.",tg:["seven","naga","remote"],cn:["southeast-asia","dragon"]},
+{id:498,n:"Bengal Tiger",la:23,lo:88,t:"mythical-place",c:"Bengali",e:0,d:"Baghera Bagh. Royal Bengal tigers.",tg:["tiger","bengal","india"],cn:["indian"]},
+{id:499,n:"Shiva Lingam",la:20,lo:78,t:"sacred-site",c:"Hindu",e:0,d:"Millions of Shiva symbols.",tg:["lingam","shiva","hindu"],cn:["hindu","axis"]},
+{id:500,n:"Brahma Kumaris",la:22,lo:73,t:"sacred-site",c:"Hindu",e:2,d:"World spiritual university.",tg:["spiritual","university","mount abu"],cn:["hindu"]},
+{id:501,n:"Qiongqi",la:40,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Four Perils. Tiger with wings, devours humans from the head down.",tg:["four perils","shan hai jing","demon"],cn:["shan-hai-jing","chinese"]},
+{id:502,n:"Taotie",la:34,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Four Perils. Gluttony demon, shown as head with huge mouth.",tg:["four perils","gluttony","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:503,n:"Hundun",la:36,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Four Perils. Chaos entity, formless and deaf, friend of ritual.",tg:["four perils","chaos","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:504,n:"Taowu",la:42,lo:95,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Four Perils. Stubborn beast, lives at northwest.",tg:["four perils","stubborn","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:505,n:"Zhulong",la:30,lo:120,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Torch Dragon. Red solar dragon, eyes are suns.",tg:["dragon","solar","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:506,n:"Yinglong",la:35,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Winged Dragon. Water dragon, servant of Yellow Emperor.",tg:["dragon","winged","yellow emperor"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:507,n:"Chiwen",la:39,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Dragon head on roof ridges. Prevents fires and floods.",tg:["dragon","guardian","chinese"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:508,n:"Bixi",la:31,lo:120,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Dragon Turtle. Carries stone tablets and heavy monuments.",tg:["dragon","turtle","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:509,n:"Fenghuang",la:23,lo:113,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Phoenix. King of birds, appears with sage rulers.",tg:["phoenix","bird","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:510,n:"Bi Fang",la:26,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"One-legged Crane. Blue-red bird, heralds fire.",tg:["crane","one-legged","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:511,n:"Jiufeng",la:29,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Nine-headed Phoenix. Bird with nine heads.",tg:["phoenix","nine-headed","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:512,n:"Baxian",la:22,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Ba Snake. Giant snake that swallows elephants.",tg:["snake","giant","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:513,n:"Tiangou",la:32,lo:119,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Heavenly Dog. Celestial dog that devours the moon.",tg:["dog","heavenly","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:514,n:"Qilin",la:25,lo:117,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Unicorn-like creature. Hooves, antlers, dragon scales.",tg:["qilin","unicorn","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:515,n:"Pixiu",la:40,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Winged Lion. Anxious beast, guards treasures.",tg:["pixiu","winged lion","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:516,n:"Xiangliu",la:28,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Nine-headed Serpent. Flood dragon's minister, poisonous.",tg:["serpent","nine-headed","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:517,n:"Baize",la:38,lo:113,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Ze. Nine-eyed beast, taught Yellow Emperor.",tg:["nine eyes","white","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:518,n:"Chenghuang",la:33,lo:120,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Flying Yellow. Yellow beast, riding it gives immortality.",tg:["flying","yellow","shan hai jing"],cn:["shan-hai-jing","chinese","immortal"]},
+{id:519,n:"Huli jing",la:31,lo:121,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Fox Spirit. Nine-tailed fox, seduces and deceives.",tg:["fox","nine tails","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:520,n:"Shuhu",la:35,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Captive Beast. Horse body, bird wings, human face.",tg:["horse","wings","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:521,n:"Qiong",la:27,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Alert Beast. Four-eared monkey, its cry causes floods.",tg:["monkey","four ears","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:522,n:"Zouyu",la:24,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Five-colored Beast. Tiger-sized, appears at empire's peace.",tg:["beast","five colors","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:523,n:"Zhi",la:30,lo:106,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Poisonous Bird. Kills with single cry.",tg:["bird","poison","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:524,n:"Zhu",la:32,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Great Snake. Lives in Qingqiu, devours people.",tg:["snake","giant","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:525,n:"Ya",la:25,lo:119,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Tooth Fish. Fish with human teeth.",tg:["fish","teeth","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:526,n:"Jian",la:36,lo:98,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Arrow Snake. Flying serpent, north of Kunlun.",tg:["snake","flying","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:527,n:"Yu",la:22,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Fish Dragon. Human face, fish body.",tg:["fish","dragon","human face"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:528,n:"Die",la:34,lo:111,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Blood Snake. Red snake, three-tailed, poisonous.",tg:["snake","red","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:529,n:"Dan",la:28,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Single-eyed Beast. One eye, pig's body.",tg:["one eye","pig","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:530,n:"Chong",la:33,lo:109,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Tapir Beast. Black body, human face.",tg:["tapir","human face","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:531,n:"Bai Mao",la:37,lo:117,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Fur Beast. Cow-like, human hands, calls name.",tg:["cow","human hands","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:532,n:"Chirou",la:29,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Red Fish. Fish with human face, appears in rivers.",tg:["fish","human face","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:533,n:"Dijiang",la:41,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Yellow Bag. Formless god of music, six legs, four wings.",tg:["god","formless","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:534,n:"Fei Lian",la:31,lo:107,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Wind God. Deer body, bird wings, snake tail.",tg:["wind god","deer","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:535,n:"Raoyu",la:26,lo:111,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Leopard Beast. Cow tail, single horn, white stripe.",tg:["leopard","horn","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:536,n:"Ba",la:23,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Tiger. Divine beast, guardian of west.",tg:["tiger","white","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:537,n:"Xuan",la:30,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Black Bird. Three-headed bird, divine messenger.",tg:["bird","three-headed","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:538,n:"Quan",la:35,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Single Horn Beast. Horse body, single horn, eats tigers.",tg:["horse","horn","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:539,n:"Shuyu",la:27,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Human Face Beast. Human face, four eyes, dog body.",tg:["human face","four eyes","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:540,n:"Lao Hu",la:24,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Sound-tiger. Tiger with human face, speaks with humans.",tg:["tiger","human face","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:541,n:"Ling",la:32,lo:119,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Water Ox. River monster, ox head, human hands.",tg:["water","ox","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:542,n:"Wei",la:38,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Hedgehog Beast. Giant hedgehog, feathers, flies.",tg:["hedgehog","feathers","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:543,n:"Wei Zhi",la:21,lo:117,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Pig-footed Beast. Human face, pig feet, snake tail.",tg:["pig feet","human face","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:544,n:"Zhan",la:29,lo:107,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Snake King. Giant snake, black and white, red mane.",tg:["snake","king","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:545,n:"Cha",la:34,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Forked Snake. Red snake, splits mountains.",tg:["snake","forked","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:546,n:"Jian Chi",la:25,lo:120,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Swordtooth Fish. Fish with sword-like teeth.",tg:["fish","sword teeth","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:547,n:"Qiu",la:36,lo:109,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Black Snake. Giant snake, human head, devours gods.",tg:["snake","human head","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:548,n:"Luan",la:28,lo:113,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Mythical Bird. Phoenix-like, appears in peaceful times.",tg:["bird","mythical","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:549,n:"Jue",la:33,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"One-legged Bird. One leg, red bird, brings drought.",tg:["bird","one leg","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:550,n:"Zhu Que",la:22,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Vermilion Bird. Red bird, guardian of south.",tg:["bird","vermilion","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:551,n:"Xuan Yin",la:30,lo:105,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Dark Crane. Black crane, white head, speaks human words.",tg:["crane","black","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:552,n:"Peng",la:35,lo:121,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Giant Bird.几千里, wings cover sun.",tg:["bird","giant","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:553,n:"Jun",la:31,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Mount Crow. Black bird, three-headed, dog body.",tg:["crow","three-headed","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:554,n:"Yu Ge",la:26,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Feathered Person. Human with bird feathers.",tg:["human","feathers","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:555,n:"Jingren",la:39,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Pygmy People. Tiny people, one arm, one eye.",tg:["pygmy","one arm","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:556,n:"Daxia",la:32,lo:102,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Giant Country. People ten feet tall, face south.",tg:["giant","country","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:557,n:"Xue",la:37,lo:111,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Blood Recluse. Spider creature, dwelling in caves.",tg:["spider","blood","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:558,n:"Jie",la:23,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Nine-tailed Cat. Cat with nine tails, sound like baby.",tg:["cat","nine tails","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:559,n:"Bai She",la:30,lo:120,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Serpent. Giant white snake, in deep waters.",tg:["serpent","white","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:560,n:"Gui",la:28,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Tortoise Spirit. Giant turtle, spirit of waters.",tg:["turtle","spirit","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:561,n:"Xie Zhi",la:34,lo:109,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Justice Beast. One horn, goat body, knows good and evil.",tg:["goat","one horn","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:562,n:"Bai Zhu",la:25,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Monkey. White ape, four ears, voice like child.",tg:["monkey","white","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:563,n:"Zhang",la:31,lo:107,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Gibbon Beast. Armless ape, crawls with feet.",tg:["gibbon","armless","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:564,n:"Yao",la:29,lo:119,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Vampire. Female spirit, one eye, one breast.",tg:["vampire","female","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:565,n:"Bai Mao",la:36,lo:113,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Dog. Divine dog, guardian of doorways.",tg:["dog","white","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:566,n:"Chi",la:33,lo:106,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Hornless Dragon. Mountain demon, river dragon.",tg:["dragon","hornless","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:567,n:"Jiuying",la:27,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Nine Infants. Giant bird, steals people.",tg:["bird","nine","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:568,n:"Shu",la:24,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Rat Rabbit. Creature with rabbit head, rat tail.",tg:["rabbit","rat","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:569,n:"Mian",la:21,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Nine-tailed Macaque. Red ape, nine tails.",tg:["macaque","nine tails","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:570,n:"Huang",la:38,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Yellow Beast. Four-eyed, cow body, human face.",tg:["beast","four eyes","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:571,n:"Qiong Xue",la:41,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Beggar. Snowy weasel, white and black, kills ten thousand.",tg:["weasel","snowy","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:572,n:"You Po",la:35,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Lizard. Lives in mountains, four legs, two heads.",tg:["lizard","two heads","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:573,n:"Dai",la:28,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Mole Beast. Black mole, flies at night.",tg:["mole","flying","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:574,n:"Zhi Dou",la:32,lo:104,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Pointed Head. Beast with sharp head, north of rivers.",tg:["beast","pointed","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:575,n:"Wei She",la:26,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Wicked Snake. Serpent, devours three people.",tg:["snake","wicked","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:576,n:"Xie",la:23,lo:117,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Poison Frog. Tree frog, blue spots, deadly poison.",tg:["frog","poison","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:577,n:"Jin Chi",la:30,lo:109,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Golden Eagle. King of birds, kills dragons.",tg:["eagle","golden","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:578,n:"Bai Fu",la:34,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Tiger. Sacred tiger, rides wind and clouds.",tg:["tiger","white","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:579,n:"Lv",la:25,lo:111,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Green Deer. Deer with scales like dragon.",tg:["deer","scales","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:580,n:"He",la:29,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Crane. White crane, enters rivers, divine bird.",tg:["crane","white","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:581,n:"Qian",la:36,lo:107,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Mole Rat. Lives underground, no eyes, digs paths.",tg:["mole","no eyes","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:582,n:"Cao",la:22,lo:113,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Horned Toad. Toad with horns, poison in tail.",tg:["toad","horned","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:583,n:"Bai Yu",la:31,lo:119,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Jade Beast. Crystal creature, luminous at night.",tg:["beast","white jade","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:584,n:"Zou Ma",la:27,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Running Horse. Horse that flies, appears in dreams.",tg:["horse","flying","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:585,n:"Yu Nu",la:24,lo:120,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Fish Woman. Mermaid-like, human face, fish body.",tg:["mermaid","fish","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:586,n:"Jiao",la:33,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"River Dragon. Dragon that causes floods.",tg:["dragon","flood","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:587,n:"Kun",la:28,lo:118,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Giant Fish. Huge fish, becomes bird Peng.",tg:["fish","giant","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:588,n:"Niao",la:35,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Fire Crow. Three-legged crow, lives in sun.",tg:["crow","three legs","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:589,n:"Lv Shi",la:26,lo:116,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Green Lion. Beast with green mane, roars clouds.",tg:["lion","green","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:590,n:"Xiao",la:32,lo:104,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Mountain Demon. Goblin, one foot, laughs at people.",tg:["goblin","one foot","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:591,n:"Guang",la:37,lo:113,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Light Beast. Luminous, appears before disasters.",tg:["beast","luminous","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:592,n:"Cheng",la:21,lo:112,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Mountain Ox. Beast with human face, calls like calf.",tg:["ox","human face","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:593,n:"Duan",la:30,lo:106,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Short Beast. Small creature, four eyes, no tail.",tg:["beast","small","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:594,n:"Shi",la:34,lo:111,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Corpse Bird. Bird that consumes corpses.",tg:["bird","corpse","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:595,n:"Hou",la:25,lo:115,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Howling Monkey. Ape with dog's tail, voice like drum.",tg:["monkey","howling","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:596,n:"Xuan",la:38,lo:109,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Profound Bird. Black bird, three heads, fearsome.",tg:["bird","three heads","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:597,n:"Bai Ma",la:29,lo:117,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"White Horse. Divine horse, travels between worlds.",tg:["horse","white","shan hai jing"],cn:["shan-hai-jing","chinese","immortal"]},
+{id:598,n:"Cao Wen",la:23,lo:110,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Grass Turtle. Turtle covered with grass, divination.",tg:["turtle","grass","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:599,n:"Zhu Long",la:31,lo:114,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Pig Dragon. Dragon with pig's head, lives in sea.",tg:["dragon","pig head","shan hai jing"],cn:["shan-hai-jing","chinese","dragon"]},
+{id:600,n:"Shi Ren",la:27,lo:108,t:"mythical-place",c:"Shan Hai Jing",e:0,d:"Stone Person. Human carved from stone, animated.",tg:["stone","human","shan hai jing"],cn:["shan-hai-jing","chinese"]},
+{id:601,n:"Leshy",la:60,lo:60,t:"mythical-place",c:"Slavic",e:0,d:"Forest guardian. Shapeshifts between human and tree.",tg:["forest","guardian","slavic"],cn:["slavic","russian"]},
+{id:602,n:"Baba Yaga",la:55,lo:50,t:"mythical-place",c:"Slavic",e:0,d:"Witch in hut on chicken legs. Tests the brave.",tg:["witch","hut","slavic"],cn:["slavic","russian"]},
+{id:603,n:"Domovoi",la:55,lo:55,t:"mythical-place",c:"Slavic",e:0,d:"Household spirit. Guards family from harm.",tg:["household","spirit","slavic"],cn:["slavic","russian"]},
+{id:604,n:"Kikimora",la:55,lo:55,t:"mythical-place",c:"Slavic",e:0,d:"Female swamp spirit. Haunts waterways.",tg:["swamp","spirit","female"],cn:["slavic","russian"]},
+{id:605,n:"Zmei Gorynych",la:55,lo:60,t:"mythical-place",c:"Slavic",e:0,d:"Three-headed dragon. Terrorizes the land.",tg:["dragon","three-headed","slavic"],cn:["slavic","russian","dragon"]},
+{id:606,n:"Morana",la:55,lo:45,t:"mythical-place",c:"Slavic",e:0,d:"Winter goddess. Goddess of death and winter.",tg:["goddess","winter","slavic"],cn:["slavic","russian"]},
+{id:607,n:"Svarog",la:55,lo:45,t:"mythical-place",c:"Slavic",e:0,d:"Fire god. Forged the universe.",tg:["fire","god","slavic"],cn:["slavic","russian"]},
+{id:608,n:"Perun",la:55,lo:45,t:"mythical-place",c:"Slavic",e:0,d:"Thunder god. Wields axe against enemies.",tg:["thunder","god","slavic"],cn:["slavic","russian"]},
+{id:609,n:"Vodyanoy",la:55,lo:55,t:"mythical-place",c:"Slavic",e:0,d:"Water spirit. Lives in rivers and ponds.",tg:["water","spirit","slavic"],cn:["slavic","russian"]},
+{id:610,n:"Rusalka",la:55,lo:50,t:"mythical-place",c:"Slavic",e:0,d:"Water nymph. Drowns those who disturb waters.",tg:["water","nymph","slavic"],cn:["slavic","russian"]},
+{id:611,n:"Poludnitsa",la:55,lo:55,t:"mythical-place",c:"Slavic",e:0,d:"Noon wraith. Appears at midday in fields.",tg:["spirit","field","slavic"],cn:["slavic","russian"]},
+{id:612,n:"Ovinnik",la:55,lo:55,t:"mythical-place",c:"Slavic",e:0,d:"Barn spirit. Protects or destroys harvest.",tg:["barn","spirit","slavic"],cn:["slavic","russian"]},
+{id:613,n:"Lich",la:55,lo:50,t:"mythical-place",c:"Slavic",e:0,d:"Undead sorcerer. Powerful magician returned.",tg:["undead","sorcerer","slavic"],cn:["slavic","russian"]},
+{id:614,n:"Alkonost",la:55,lo:45,t:"mythical-place",c:"Slavic",e:0,d:"Bird of paradise. Sings prophecies.",tg:["bird","paradise","slavic"],cn:["slavic","russian"]},
+{id:615,n:"Sirin",la:55,lo:45,t:"mythical-place",c:"Slavic",e:0,d:"Bird of paradise. Lures with song.",tg:["bird","lure","slavic"],cn:["slavic","russian"]},
+{id:616,n:"Gamayun",la:55,lo:45,t:"mythical-place",c:"Slavic",e:0,d:"Bird of knowledge. Knows all secrets.",tg:["bird","knowledge","slavic"],cn:["slavic","russian"]},
+{id:617,n:"Zhár-bird",la:55,lo:50,t:"mythical-place",c:"Slavic",e:0,d:"Fire bird. Its feathers glow like embers.",tg:["fire","bird","slavic"],cn:["slavic","russian"]},
+{id:618,n:"Berminator",la:55,lo:55,t:"mythical-place",c:"Slavic",e:0,d:"Underground spirit. Lives in mines.",tg:["underground","spirit","slavic"],cn:["slavic","russian"]},
+{id:619,n:"Mavka",la:50,lo:30,t:"mythical-place",c:"Ukrainian",e:0,d:"Forest spirit. Deadly to woodsmen.",tg:["forest","spirit","ukrainian"],cn:["slavic","russian"]},
+{id:620,n:"Karakondzha",la:45,lo:35,t:"mythical-place",c:"Bulgarian",e:0,d:"Ugly demons. Lure children to dark.",tg:["demon","ugly","bulgarian"],cn:["balkan","slavic"]},
+{id:621,n:"Samodiva",la:42,lo:25,t:"mythical-place",c:"Bulgarian",e:0,d:"Forest nymphs. Dance in moonlit clearings.",tg:["nymph","forest","bulgarian"],cn:["balkan","slavic"]},
+{id:622,n:"Ech",la:50,lo:45,t:"mythical-place",c:"Russian",e:0,d:"Howling spirit. Sounds like wolves.",tg:["spirit","howling","russian"],cn:["russian","slavic"]},
+{id:623,n:"Vukodlak",la:45,lo:20,t:"mythical-place",c:"Serbian",e:0,d:"Werewolf. Person who returns from death.",tg:["werewolf","undead","serbian"],cn:["balkan","slavic","vampire"]},
+{id:624,n:"Anzu",la:50,lo:45,t:"mythical-place",c:"Sumerian",e:0,d:"Bird-lion. Stole tablets of destiny.",tg:["bird","lion","sumerian"],cn:["mesopotamian"]},
+{id:625,n:"Amulets",la:60,lo:55,t:"sacred-site",c:"Siberian",e:0,d:"Shamanic power objects. Protect travelers.",tg:["amulet","shaman","siberian"],cn:["russian"]},
+{id:626,n:"Ob River Spirit",la:65,lo:70,t:"mythical-place",c:"Siberian",e:0,d:"River spirit. Controls fish and floods.",tg:["river","spirit","siberian"],cn:["russian"]},
+{id:627,n:"Baabda",la:65,lo:165,t:"mythical-place",c:"Siberian",e:0,d:"Forest spirit. Reindeer herders' guide.",tg:["forest","spirit","siberian"],cn:["russian"]},
+{id:628,n:"Thunderbird",la:55,lo:-120,t:"mythical-place",c:"Native American",e:0,d:"Giant bird. Lightning in its wings.",tg:["thunderbird","bird","native"],cn:["north-america"]},
+{id:629,n:"Wendigo",la:55,lo:-80,t:"mythical-place",c:"Algonquian",e:0,d:"Cannibal spirit. Winter starvation curse.",tg:["wendigo","cannibal","native"],cn:["north-america"]},
+{id:630,n:"Pukwudgie",la:45,lo:-70,t:"mythical-place",c:"Algonquian",e:0,d:"Small forest sprites. Shoot poisonous arrows.",tg:["sprite","forest","native"],cn:["north-america"]},
+{id:631,n:"Mishipeshu",la:50,lo:-80,t:"mythical-place",c:"Ojibwe",e:0,d:"Great water lynx. Spirit of Great Lakes.",tg:["water","lynx","native"],cn:["north-america"]},
+{id:632,n:"Nanabozho",la:45,lo:-85,t:"mythical-place",c:"Ojibwe",e:0,d:"Great rabbit. Creator and culture hero.",tg:["rabbit","creator","native"],cn:["north-america"]},
+{id:633,n:"Kachina",la:35,lo:-110,t:"mythical-place",c:"Hopi",e:0,d:"Spirit beings. Dance at ceremonies.",tg:["kachina","spirit","hopi"],cn:["north-america"]},
+{id:634,n:"Sio",la:60,lo:-140,t:"mythical-place",c:"Pacific Northwest",e:0,d:"Wild woman of the woods.",tg:["wild woman","forest","native"],cn:["north-america"]},
+{id:635,n:"Anansi",la:8,lo:-2,t:"mythical-place",c:"West African",e:0,d:"Spider trickster. Created sun, moon, stars.",tg:["spider","trickster","african"],cn:["african"]},
+{id:636,n:"Mami Wata",la:6,lo:3,t:"mythical-place",c:"West African",e:0,d:"Water spirit. Beautiful woman with fish tail.",tg:["water","spirit","african"],cn:["african"]},
+{id:637,n:"Anansi Stories",la:8,lo:-1,t:"mythical-place",c:"Akan",e:0,d:"Spider tales. Teaching wisdom and morals.",tg:["spider","stories","african"],cn:["african"]},
+{id:638,n:"Ogun",la:7,lo:4,t:"mythical-place",c:"Yoruba",e:0,d:"Iron god. Patron of warriors and smiths.",tg:["iron","god","yoruba"],cn:["african"]},
+{id:639,n:"Shango",la:8,lo:4,t:"mythical-place",c:"Yoruba",e:0,d:"Thunder god. Ruler with double axe.",tg:["thunder","god","yoruba"],cn:["african"]},
+{id:640,n:"Eshu",la:8,lo:4,t:"mythical-place",c:"Yoruba",e:0,d:"Trickster god. Chaos bringer and guide.",tg:["trickster","god","yoruba"],cn:["african"]},
+{id:641,n:"Yemoja",la:6,lo:3,t:"mythical-place",c:"Yoruba",e:0,d:"Mother of waters. Queen of the sea.",tg:["mother","sea","yoruba"],cn:["african"]},
+{id:642,n:"Obatala",la:8,lo:4,t:"mythical-place",c:"Yoruba",e:0,d:"Creator god. Made earth and humans.",tg:["creator","god","yoruba"],cn:["african"]},
+{id:643,n:"Orunmila",la:8,lo:4,t:"mythical-place",c:"Yoruba",e:0,d:"Wisdom god. Keeper of destiny.",tg:["wisdom","god","yoruba"],cn:["african"]},
+{id:644,n:"Ape",la:10,lo:15,t:"mythical-place",c:"Yoruba",e:0,d:"Rainbow goddess. Connected to Orunmila.",tg:["rainbow","goddess","yoruba"],cn:["african"]},
+{id:645,n:"Azaka Mede",la:6,lo:2,t:"mythical-place",c:"Vodou",e:0,d:"Loa of harvest. Tractor spirit.",tg:["loa","harvest","haiti"],cn:["african"]},
+{id:646,n:"Baron Samedi",la:19,lo:-72,t:"mythical-place",c:"Vodou",e:0,d:"Loa of death. Keeper of crossroads.",tg:["loa","death","haiti"],cn:["african"]},
+{id:647,n:"Legba",la:19,lo:-72,t:"mythical-place",c:"Vodou",e:0,d:"Gatekeeper. Opens doors between worlds.",tg:["gatekeeper","spirit","haiti"],cn:["african"]},
+{id:648,n:"Oba",la:6,lo:3,t:"mythical-place",c:"Yoruba",e:0,d:"River goddess. Wife of Shango.",tg:["river","goddess","yoruba"],cn:["african"]},
+{id:649,n:"Olokun",la:6,lo:3,t:"mythical-place",c:"Yoruba",e:0,d:"Sea god. Keeper of wealth and riches.",tg:["sea","god","yoruba"],cn:["african"]},
+{id:650,n:"Damballa",la:19,lo:-72,t:"mythical-place",c:"Vodou",e:0,d:"Sky god. Serpent of life.",tg:["sky","god","serpent","haiti"],cn:["african"]},
+{id:651,n:"Mami Wata",la:-5,lo:35,t:"mythical-place",c:"East African",e:0,d:"Water spirit. Beautiful, combing hair.",tg:["water","spirit","east africa"],cn:["african"]},
+{id:652,n:"Bunyip",la:-30,lo:135,t:"mythical-place",c:"Australian",e:0,d:"Water spirit. Lives in swamps and rivers.",tg:["bunyip","water","australia"],cn:["australian"]},
+{id:653,n:"Rainbow Serpent",la:-25,lo:135,t:"mythical-place",c:"Australian",e:0,d:"Creator serpent. Formed rivers and mountains.",tg:["rainbow","serpent","australia"],cn:["australian"]},
+{id:654,n:"Yowie",la:-30,lo:150,t:"mythical-place",c:"Australian",e:0,d:"Wild man. Hairy hominid in bush.",tg:["yowie","wild man","australia"],cn:["australian"]},
+{id:655,n:"Baba Yaga",la:-3,lo:35,t:"mythical-place",c:"Ethiopian",e:0,d:"Queen of Sheba. Visited Solomon.",tg:["queen","sheba","ethiopia"],cn:["african"]},
+{id:656,n:"Zar",la:9,lo:39,t:"mythical-place",c:"Ethiopian",e:0,d:"Spirit possession. Jinn spirits.",tg:["spirit","possession","ethiopia"],cn:["african"]},
+{id:657,n:"Bunyip",la:-20,lo:25,t:"mythical-place",c:"South African",e:0,d:"Water monster. Lives in dams.",tg:["monster","water","africa"],cn:["african"]},
+{id:658,n:"Tokoloshe",la:-26,lo:28,t:"mythical-place",c:"Zulu",e:0,d:"Mischievous dwarf. Causes nightmares.",tg:["dwarf","mischief","zulu"],cn:["african"]},
+{id:659,n:"Inkanyamba",la:-29,lo:30,t:"mythical-place",c:"Zulu",e:0,d:"Serpent in the sky. Causes storms.",tg:["serpent","storm","zulu"],cn:["african"]},
+{id:660,n:"Mokele-mbembe",la:0,lo:15,t:"mythical-place",c:"Congo",e:0,d:"Living dinosaur. Swamp creature in Congo.",tg:["dinosaur","swamp","congo"],cn:["african"]},
+{id:661,n:"Popobawa",la:-5,lo:40,t:"mythical-place",c:"Zanzibar",e:0,d:"One-winged bat. Terrorizes villages.",tg:["bat","winged","zanzibar"],cn:["african"]},
+{id:662,n:"Jengu",la:4,lo:10,t:"mythical-place",c:"Cameroon",e:0,d:"Water spirit. Young women with blue eyes.",tg:["water","spirit","cameroon"],cn:["african"]},
+{id:663,n:"Mamlambo",la:-28,lo:25,t:"mythical-place",c:"South African",e:0,d:"River monster. Sucks blood of victims.",tg:["monster","river","south africa"],cn:["african"]},
+{id:664,n:"Ninki Nanka",la:14,lo:-15,t:"mythical-place",c:"Gambian",e:0,d:"Lake monster. Crocodile with horse head.",tg:["monster","lake","gambia"],cn:["african"]},
+{id:665,n:"Ado",la:6,lo:3,t:"mythical-place",c:"Yoruba",e:0,d:"Goddess of the river. Wife of Olokun.",tg:["goddess","river","yoruba"],cn:["african"]},
+{id:666,n:"Adehyd",la:5,lo:10,t:"mythical-place",c:"Fon",e:0,d:"Sun god. Horse-headed deity.",tg:["sun","god","benin"],cn:["african"]},
+{id:667,n:"Mami Wata",la:5,lo:-1,t:"mythical-place",c:"Ghanaian",e:0,d:"Water spirit. Associated with wealth.",tg:["water","spirit","ghana"],cn:["african"]},
+{id:668,n:"Asanbosam",la:7,lo:-2,t:"mythical-place",c:"Akan",e:0,d:"Forest spirit. Iron teeth, flies.",tg:["forest","spirit","ghana"],cn:["african"]},
+{id:669,n:"Ditaba",la:-20,lo:25,t:"mythical-place",c:"Sotho",e:0,d:"Ancestral spirits. Watch over villages.",tg:["ancestors","spirit","lesotho"],cn:["african"]},
+{id:670,n:"Jaka",la:-15,lo:30,t:"mythical-place",c:"Zulu",e:0,d:"Witch doctor. Spirit medium.",tg:["witch doctor","spirit","zulu"],cn:["african"]},
+{id:671,n:"Nomkhubulwane",la:-28,lo:30,t:"mythical-place",c:"Zulu",e:0,d:"Rain goddess. Shapeshifts into animals.",tg:["rain","goddess","zulu"],cn:["african"]},
+{id:672,n:"Cagn",la:-22,lo:17,t:"mythical-place",c:"Kalahari",e:0,d:"Creator god. Bag dream, made world.",tg:["creator","god","bushmen"],cn:["african"]},
+{id:673,n:"Heitsi-eibib",la:-25,lo:18,t:"mythical-place",c:"Khoikhoi",e:0,d:"Divine hero. Ghost who guides hunters.",tg:["hero","ghost","khoikhoi"],cn:["african"]},
+{id:674,n:"Amazulu",la:-28,lo:28,t:"mythical-place",c:"Zulu",e:0,d:"Ancestral spirits. Continue after death.",tg:["ancestors","spirit","zulu"],cn:["african"]},
+{id:675,n:"Mami Wata",la:3,lo:42,t:"mythical-place",c:"Somali",e:0,d:"Sea spirit. Beautiful woman with fish.",tg:["sea","spirit","somali"],cn:["african"]},
+{id:676,n:"Baba Yaga",la:15,lo:40,t:"mythical-place",c:"Ethiopian",e:0,d:"Empress of Sheba. Met King Solomon.",tg:["queen","sheba","ethiopia"],cn:["african"]},
+{id:677,n:"Dinka",la:5,lo:30,t:"mythical-place",c:"Sudanese",e:0,d:"Spirit world. Ancestors watch tribe.",tg:["spirit","ancestors","sudan"],cn:["african"]},
+{id:678,n:"Paka",la:-1,lo:30,t:"mythical-place",c:"Congolese",e:0,d:"Forest spirit. Protects animals.",tg:["forest","spirit","congo"],cn:["african"]},
+{id:679,n:"Leba",la:10,lo:-10,t:"mythical-place",c:"West African",e:0,d:"Mask spirit. Brings good harvest.",tg:["mask","spirit","west africa"],cn:["african"]},
+{id:680,n:"Pisky",la:55,lo:40,t:"mythical-place",c:"Russian",e:0,d:"Field spirits. Dance in fields at night.",tg:["field","spirit","russian"],cn:["russian","slavic"]},
+{id:681,n:"Deva Baba",la:50,lo:60,t:"mythical-place",c:"Siberian",e:0,d:"Grandfather of bears. Protective spirit.",tg:["bear","spirit","siberian"],cn:["russian"]},
+{id:682,n:"Kumara",la:60,lo:80,t:"mythical-place",c:"Mongolian",e:0,d:"Lord of underworld. Three-headed dog.",tg:["underworld","dog","mongolian"],cn:["mongolian"]},
+{id:683,n:"Tengri",la:50,lo:100,t:"mythical-place",c:"Mongolian",e:0,d:"Sky god. Eternal blue sky father.",tg:["sky","god","mongolian"],cn:["mongolian"]},
+{id:684,n:"Erke",la:45,lo:95,t:"mythical-place",c:"Mongolian",e:0,d:"Rainbow god. Arch of hope.",tg:["rainbow","god","mongolian"],cn:["mongolian"]},
+{id:685,n:"Manul",la:50,lo:105,t:"mythical-place",c:"Mongolian",e:0,d:"Cat spirit. Guardian of household.",tg:["cat","spirit","mongolian"],cn:["mongolian"]},
+{id:686,n:"Amur",la:45,lo:135,t:"mythical-place",c:"Manchurian",e:0,d:"Tiger god. Lord of mountains.",tg:["tiger","god","manchuria"],cn:["chinese"]},
+{id:687,n:"Khan",la:40,lo:95,t:"mythical-place",c:"Kazakh",e:0,d:"Eagle spirit. Hunting companion.",tg:["eagle","spirit","kazakh"],cn:["central asian"]},
+{id:688,n:"Khan",la:45,lo:75,t:"mythical-place",c:"Mongolian",e:0,d:"Golden eagle. King of birds.",tg:["eagle","golden","mongolia"],cn:["mongolian"]},
+{id:689,n:"Geser",la:50,lo:100,t:"mythical-place",c:"Mongolian",e:0,d:"Epic hero. Battles demons.",tg:["hero","epic","mongolia"],cn:["mongolian"]},
+{id:690,n:"Buudald",la:55,lo:105,t:"mythical-place",c:"Buryat",e:0,d:"Fire spirit. Family protector.",tg:["fire","spirit","buryat"],cn:["siberian"]},
+{id:691,n:"Khan",la:70,lo:60,t:"mythical-place",c:"Siberian",e:0,d:"Wolverine spirit. Mighty hunter.",tg:["wolverine","spirit","siberia"],cn:["siberian"]},
+{id:692,n:"Yakut",la:65,lo:130,t:"mythical-place",c:"Yakut",e:0,d:"Bear ancestor. Ruler of forest.",tg:["bear","ancestor","yakut"],cn:["siberian"]},
+{id:693,n:"Evenk",la:60,lo:120,t:"mythical-place",c:"Evenki",e:0,d:"Reindeer spirit. Shaman's guide.",tg:["reindeer","spirit","evenki"],cn:["siberian"]},
+{id:694,n:"Mongol Death Worm",la:45,lo:105,t:"mythical-place",c:"Mongolian",e:0,d:"Electric creature. Kills at distance.",tg:["death worm","monster","mongolia"],cn:["mongolian"]},
+{id:695,n:"Alashan",la:38,lo:105,t:"mythical-place",c:"Mongolian",e:0,d:"Desert dragon. Lives in dunes.",tg:["dragon","desert","mongolia"],cn:["mongolian","dragon"]},
+{id:696,n:"Gobi Bear",la:44,lo:105,t:"mythical-place",c:"Mongolian",e:0,d:"Mangol bear. Last of its kind.",tg:["bear","gobi","mongolia"],cn:["mongolian"]},
+{id:697,n:"Thunderbird",la:-10,lo:-55,t:"mythical-place",c:"Amazonian",e:0,d:"Giant bird. Lightning in wings.",tg:["thunderbird","bird","amazon"],cn:["south-america"]},
+{id:698,n:"Mapinguari",la:-10,lo:-65,t:"mythical-place",c:"Brazilian",e:0,d:"One-eyed beast. Hairy giant of Amazon.",tg:["one eye","beast","amazon"],cn:["south-america"]},
+{id:699,n:"Curupira",la:-3,lo:-60,t:"mythical-place",c:"Brazilian",e:0,d:"Forest guardian. Feet face backward.",tg:["forest","guardian","brazil"],cn:["south-america"]},
+{id:700,n:"Iara",la:-5,lo:-60,t:"mythical-place",c:"Brazilian",e:0,d:"Water mermaid. Beautiful fish woman.",tg:["mermaid","water","brazil"],cn:["south-america"]},
+{id:701,n:"Boitata",la:-15,lo:-55,t:"mythical-place",c:"Brazilian",e:0,d:"Fire serpent. Lives in rivers.",tg:["serpent","fire","brazil"],cn:["south-america"]},
+{id:702,n:"Caipora",la:-10,lo:-60,t:"mythical-place",c:"Brazilian",e:0,d:"Forest spirit. Protector of animals.",tg:["forest","spirit","brazil"],cn:["south-america"]},
+{id:703,n:"Boitatá",la:-20,lo:-50,t:"mythical-place",c:"Brazilian",e:0,d:"Fire snake. Eyes glow like lanterns.",tg:["fire","snake","brazil"],cn:["south-america"]},
+{id:704,n:"Saci",la:-15,lo:-50,t:"mythical-place",c:"Brazilian",e:0,d:"One-legged trickster. Smoke-filled cap.",tg:["trickster","one leg","brazil"],cn:["south-america"]},
+{id:705,n:"Cuca",la:-10,lo:-45,t:"mythical-place",c:"Brazilian",e:0,d:"Witch alligator. Eats naughty children.",tg:["witch","alligator","brazil"],cn:["south-america"]},
+{id:706,n:"Lobizon",la:-30,lo:-55,t:"mythical-place",c:"Brazilian",e:0,d:"Werewolf. Soldier who became beast.",tg:["werewolf","soldier","brazil"],cn:["south-america"]},
+{id:707,n:"Mapul",la:-40,lo:-70,t:"mythical-place",c:"Chilean",e:0,d:"Forest spirit. Guardian of trees.",tg:["forest","spirit","chile"],cn:["south-america"]},
+{id:708,n:"Trauco",la:-43,lo:-73,t:"mythical-place",c:"Chilean",e:0,d:"Forest dwarf. Petrifies those who offend.",tg:["dwarf","forest","chile"],cn:["south-america"]},
+{id:709,n:"Chonchon",la:-40,lo:-72,t:"mythical-place",c:"Chilean",e:0,d:"Bird spirit. Flies with human ear.",tg:["bird","spirit","chile"],cn:["south-america"]},
+{id:710,n:"Pincoy",la:-41,lo:-73,t:"mythical-place",c:"Chilean",e:0,d:"Sea god. Rules ocean and seals.",tg:["sea","god","chile"],cn:["south-america"]},
+{id:711,n:"Lautaro",la:-38,lo:-73,t:"mythical-place",c:"Mapuche",e:0,d:"Warrior spirit. Falcon shape.",tg:["warrior","falcon","mapuche"],cn:["south-america"]},
+{id:712,n:"Caleuche",la:-42,lo:-73,t:"mythical-place",c:"Chilean",e:0,d:"Ghost ship. Haunts Chiloé islands.",tg:["ghost","ship","chile"],cn:["south-america"]},
+{id:713,n:"Trauco",la:-42,lo:-74,t:"mythical-place",c:"Chilote",e:0,d:"Ugly dwarf. Lives in forests.",tg:["dwarf","ugly","chilote"],cn:["south-america"]},
+{id:714,n:"Pincoy",la:-41,lo:-73,t:"mythical-place",c:"Chilote",e:0,d:"Lord of the sea. Blue-skinned god.",tg:["sea","lord","chilote"],cn:["south-america"]},
+{id:715,n:"Llamo",la:-15,lo:-70,t:"mythical-place",c:"Andean",e:0,d:"Giant llama. Wanders mountains.",tg:["llama","giant","andes"],cn:["south-america"]},
+{id:716,n:"Auki",la:-5,lo:-75,t:"mythical-place",c:"Amazonian",e:0,d:"River spirit. Makes whirlpools.",tg:["river","spirit","amazon"],cn:["south-america"]},
+{id:717,n:"Madremonte",la:5,lo:-75,t:"mythical-place",c:"Colombian",e:0,d:"Mother of mountains. Giant woman.",tg:["mother","mountain","colombia"],cn:["south-america"]},
+{id:718,n:"Patasola",la:3,lo:-76,t:"mythical-place",c:"Colombian",e:0,d:"One-footed witch. Lives in forests.",tg:["witch","one foot","colombia"],cn:["south-america"]},
+{id:719,n:"Sierra",la:10,lo:-74,t:"mythical-place",c:"Colombian",e:0,d:"Mountain spirit. Guards peaks.",tg:["mountain","spirit","colombia"],cn:["south-america"]},
+{id:720,n:"Mohana",la:2,lo:-74,t:"mythical-place",c:"Colombian",e:0,d:"River mermaid. Lures men to death.",tg:["mermaid","river","colombia"],cn:["south-america"]},
+{id:721,n:"Tunda",la:4,lo:-76,t:"mythical-place",c:"Colombian",e:0,d:"Shape-shifting spirit. Impersonates loved.",tg:["shapeshifter","spirit","colombia"],cn:["south-america"]},
+{id:722,n:"Duende",la:5,lo:-75,t:"mythical-place",c:"Venezuelan",e:0,d:"Mischievous elf. Red cap, bells.",tg:["elf","mischief","venezuela"],cn:["south-america"]},
+{id:723,n:"Cuenton",la:-40,lo:-73,t:"mythical-place",c:"Chilean",e:0,d:"Wind spirit. Laughs in storms.",tg:["wind","spirit","chile"],cn:["south-america"]},
+{id:724,n:"Pascana",la:-5,lo:-80,t:"mythical-place",c:"Peruvian",e:0,d:"Desert spirit. Ghost in oases.",tg:["desert","ghost","peru"],cn:["south-america"]},
+{id:725,n:"Coatlicue",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Serpent goddess. Mother of gods.",tg:["serpent","goddess","aztec"],cn:["maya","aztec"]},
+{id:726,n:"Xipe Totec",la:17,lo:-96,t:"mythical-place",c:"Aztec",e:0,d:"Flayed god. Wears human skin.",tg:["flayed","god","aztec"],cn:["aztec"]},
+{id:727,n:"Huitzilopochtli",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Sun and war god. Hummingbird left.",tg:["sun","war","aztec"],cn:["aztec"]},
+{id:728,n:"Quetzalcoatl",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Feathered serpent. Creator god.",tg:["feathered","serpent","aztec"],cn:["aztec","axis"]},
+{id:729,n:"Tlaloc",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Rain god. Lives on mountaintops.",tg:["rain","god","aztec"],cn:["aztec"]},
+{id:730,n:"Ehecatl",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Wind god. Aspect of Quetzalcoatl.",tg:["wind","god","aztec"],cn:["aztec"]},
+{id:731,n:"Xochiquetzal",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Flower goddess. Patron of artists.",tg:["flower","goddess","aztec"],cn:["aztec"]},
+{id:732,n:"Tezcatlipoca",la:19,lo:-99,t:"mythical-place",c:"Aztec",e:0,d:"Smoking mirror. God of night and fate.",tg:["night","god","aztec"],cn:["aztec"]},
+{id:733,n:"Mictlantecuhtli",la:19,lo:-99,t:"underworld",c:"Aztec",e:0,d:"Lord of death. Skeleton god of underworld.",tg:["death","skeleton","aztec"],cn:["aztec"]},
+{id:734,n:"Xibalba",la:17,lo:-90,t:"underworld",c:"Maya",e:0,d:"Maya underworld. Nine levels of darkness.",tg:["underworld","maya","death"],cn:["maya"]},
+{id:735,n:"Camazotz",la:16,lo:-90,t:"mythical-place",c:"Maya",e:0,d:"Death bat. Kills with sonic blast.",tg:["bat","death","maya"],cn:["maya"]},
+{id:736,n:"Ahu",la:-27,lo:-109,t:"mythical-place",c:"Rapa Nui",e:0,d:"Giant birds. Competition for egg.",tg:["birds","competition","easter island"],cn:["pacific"]},
+{id:737,n:"Moai",la:-27,lo:-109,t:"sacred-site",c:"Rapa Nui",e:0,d:"Stone statues. Ancestors watching.",tg:["statues","ancestors","easter island"],cn:["pacific"]},
+{id:738,n:"Makua",la:-10,lo:-150,t:"mythical-place",c:"Polynesian",e:0,d:"Child-eating giant. Terror of Hawaii.",tg:["giant","hawaii","polynesian"],cn:["pacific"]},
+{id:739,n:"Pele",la:19,lo:-155,t:"mythical-place",c:"Hawaiian",e:0,d:"Volcano goddess. Lives in Kilauea.",tg:["volcano","goddess","hawaii"],cn:["pacific"]},
+{id:740,n:"Kamohoalii",la:21,lo:-157,t:"mythical-place",c:"Hawaiian",e:0,d:"Shark king. Guardian of surfers.",tg:["shark","king","hawaii"],cn:["pacific"]},
+{id:741,n:"Maui",la:-18,lo:178,t:"mythical-place",c:"Polynesian",e:0,d:"Trickster hero. Slowed sun, pulled islands.",tg:["trickster","hero","polynesia"],cn:["pacific"]},
+{id:742,n:"Taniwha",la:-41,lo:173,t:"mythical-place",c:"Maori",e:0,d:"Sea monster. Guardian of bays.",tg:["monster","sea","maori"],cn:["pacific"]},
+{id:743,n:"Kupe",la:-41,lo:173,t:"mythical-place",c:"Maori",e:0,d:"Navigator. Discovered New Zealand.",tg:["navigator","maori","new zealand"],cn:["pacific"]},
+{id:744,n:"Hine-nui-te-po",la:-40,lo:175,t:"underworld",c:"Maori",e:0,d:"Great goddess. Lady of night.",tg:["goddess","night","maori"],cn:["pacific"]},
+{id:745,n:"Tiki",la:-15,lo:-145,t:"mythical-place",c:"Polynesian",e:0,d:"First man. Carved from stone.",tg:["first man","carved","polynesia"],cn:["pacific"]},
+{id:746,n:"Tangaroa",la:-15,lo:-145,t:"mythical-place",c:"Polynesian",e:0,d:"Sea god. Father of sea creatures.",tg:["sea","god","polynesia"],cn:["pacific"]},
+{id:747,n:"Tane",la:-15,lo:-145,t:"mythical-place",c:"Polynesian",e:0,d:"Forest god. Creator of birds.",tg:["forest","god","polynesia"],cn:["pacific"]},
+{id:748,n:"Rongo",la:-15,lo:-145,t:"mythical-place",c:"Polynesian",e:0,d:"Peace god. Brought cultivated crops.",tg:["peace","god","polynesia"],cn:["pacific"]},
+{id:749,n:"Haumia",la:-15,lo:-145,t:"mythical-place",c:"Polynesian",e:0,d:"Wild food god. Born of earth.",tg:["food","god","polynesia"],cn:["pacific"]},
+{id:750,n:"Tu",la:-15,lo:-145,t:"mythical-place",c:"Polynesian",e:0,d:"War god. Red-stained feathers.",tg:["war","god","polynesia"],cn:["pacific"]},
+{id:751,n:"Whiro",la:-40,lo:175,t:"mythical-place",c:"Maori",e:0,d:"Evil god. Father of darkness.",tg:["evil","god","maori"],cn:["pacific"]},
+{id:752,n:"Kapo",la:20,lo:-156,t:"mythical-place",c:"Hawaiian",e:0,d:"Black lagoon goddess. Menstrual goddess.",tg:["goddess","lagoon","hawaii"],cn:["pacific"]},
+{id:753,n:"Kane",la:21,lo:-158,t:"mythical-place",c:"Hawaiian",e:0,d:"Creator god. Chief of gods.",tg:["creator","god","hawaii"],cn:["pacific"]},
+{id:754,n:"Ku",la:21,lo:-157,t:"mythical-place",c:"Hawaiian",e:0,d:"War god. Demanding and fierce.",tg:["war","god","hawaii"],cn:["pacific"]},
+{id:755,n:"Lono",la:20,lo:-156,t:"mythical-place",c:"Hawaiian",e:0,d:"Peace god. Associated with rain.",tg:["peace","god","hawaii"],cn:["pacific"]},
+{id:756,n:"Kanaloa",la:20,lo:-156,t:"mythical-place",c:"Hawaiian",e:0,d:"Sea god. Brother of Kane.",tg:["sea","god","hawaii"],cn:["pacific"]},
+{id:757,n:"Morpheus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"God of dreams.",tg:["morpheus","dreams","greek"],cn:["greek","underworld","shaman"]},
+{id:758,n:"Pan",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"God of the wild. Pipes.",tg:["pan","wild","greek"],cn:["greek","shaman"]},
+{id:759,n:"Eros",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"God of love.",tg:["eros","love","greek"],cn:["greek","creation"]},
+{id:760,n:"Aphrodite",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of love. Born from sea foam.",tg:["aphrodite","love","greek"],cn:["greek","water","creation"]},
+{id:761,n:"Nike",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of victory.",tg:["nike","victory","greek"],cn:["greek"]},
+{id:762,n:"Boreas",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"North wind god.",tg:["boreas","north","greek"],cn:["greek"]},
+{id:763,n:"Zephyrus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"West wind god.",tg:["zephyrus","west","greek"],cn:["greek"]},
+{id:764,n:"Nyx",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"Goddess of night.",tg:["nyx","night","greek"],cn:["greek","underworld"]},
+{id:765,n:"Chaos",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Void before creation.",tg:["chaos","void","greek"],cn:["greek","creation"]},
+{id:766,n:"Gaia",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Mother of all.",tg:["gaia","mother","greek"],cn:["greek","creation"]},
+{id:767,n:"Cronus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Titan who swallowed children.",tg:["cronus","titan","greek"],cn:["greek","creation","underworld"]},
+{id:768,n:"Prometheus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Brought fire to humans.",tg:["prometheus","fire","greek"],cn:["greek","creation","sun-hero"]},
+{id:769,n:"Atlas",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Held up the sky.",tg:["atlas","sky","greek"],cn:["greek","axis"]},
+{id:770,n:"Helios",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Sun god.",tg:["helios","sun","greek"],cn:["greek","sun-hero","axis"]},
+{id:771,n:"Selene",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Moon goddess.",tg:["selene","moon","greek"],cn:["greek"]},
+{id:772,n:"Persephone",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Queen of underworld.",tg:["persephone","queen","greek"],cn:["greek","underworld","creation"]},
+{id:773,n:"Dionysus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"God of wine.",tg:["dionysus","wine","greek"],cn:["greek","shaman"]},
+{id:774,n:"Hecate",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of magic.",tg:["hecate","magic","greek"],cn:["greek","shaman","underworld"]},
+{id:775,n:"Hercules",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Hero with twelve labors.",tg:["hercules","hero","greek"],cn:["greek","sun-hero"]},
+{id:776,n:"Perseus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Hero who killed Medusa.",tg:["perseus","hero","greek"],cn:["greek","sun-hero"]},
+{id:777,n:"Theseus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Slayer of Minotaur.",tg:["theseus","minotaur","greek"],cn:["greek","sun-hero"]},
+{id:778,n:"Orpheus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Music could charm all.",tg:["orpheus","music","greek"],cn:["greek","underworld","shaman"]},
+{id:779,n:"Icarus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Flew too close to sun.",tg:["icarus","flew","greek"],cn:["greek","sun-hero"]},
+{id:780,n:"Sisyphus",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"Pushed boulder forever.",tg:["sisyphus","boulder","greek"],cn:["greek","underworld"]},
+{id:781,n:"Tantalus",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"Hunger and thirst.",tg:["tantalus","hunger","greek"],cn:["greek","underworld"]},
+{id:782,n:"Cerberus",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"Three-headed dog.",tg:["cerberus","dog","greek"],cn:["greek","underworld","dragon"]},
+{id:783,n:"Hydra",la:37,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Many-headed serpent.",tg:["hydra","serpent","greek"],cn:["greek","dragon","underworld"]},
+{id:784,n:"Chimera",la:37,lo:26,t:"mythical-place",c:"Greek",e:0,d:"Lion, goat, snake beast.",tg:["chimera","monster","greek"],cn:["greek","dragon"]},
+{id:785,n:"Centaurs",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Half-man, half-horse.",tg:["centaurs","horse","greek"],cn:["greek"]},
+{id:786,n:"Satyrs",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goat men.",tg:["satyrs","goat","greek"],cn:["greek","shaman"]},
+{id:787,n:"Dryads",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Tree nymphs.",tg:["dryads","tree","greek"],cn:["greek","shaman"]},
+{id:788,n:"Naiads",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Water nymphs.",tg:["naiads","water","greek"],cn:["greek","water","shaman"]},
+{id:789,n:"Amazons",la:37,lo:35,t:"mythical-place",c:"Greek",e:0,d:"Warrior women.",tg:["amazons","warrior","greek"],cn:["greek"]},
+{id:790,n:"Midas",la:38,lo:28,t:"mythical-place",c:"Greek",e:0,d:"Golden touch.",tg:["midas","golden","greek"],cn:["greek"]},
+{id:791,n:"Circe",la:40,lo:17,t:"mythical-place",c:"Greek",e:0,d:"Enchantress who turned men to swine.",tg:["circe","enchantress","greek"],cn:["greek","shaman"]},
+{id:792,n:"Medea",la:37,lo:24,t:"mythical-place",c:"Greek",e:0,d:"Witch of Colchis.",tg:["medea","witch","greek"],cn:["greek","shaman","underworld"]},
+{id:793,n:"Narcissus",la:38,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Loved his reflection.",tg:["narcissus","reflection","greek"],cn:["greek","water"]},
+{id:794,n:"Cassandra",la:39,lo:26,t:"mythical-place",c:"Greek",e:0,d:"Cursed prophet.",tg:["cassandra","prophet","greek"],cn:["greek","underworld"]},
+{id:795,n:"Moirai",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"The Fates. Spin, measure, cut thread.",tg:["fates","thread","greek"],cn:["greek","creation"]},
+{id:796,n:"Tyche",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of fortune.",tg:["tyche","fortune","greek"],cn:["greek"]},
+{id:797,n:"Nemesis",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of retribution.",tg:["nemesis","retribution","greek"],cn:["greek","underworld"]},
+{id:798,n:"Eris",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of discord.",tg:["eris","discord","greek"],cn:["greek"]},
+{id:799,n:"Achilles",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Greatest warrior at Troy.",tg:["achilles","warrior","greek"],cn:["greek","sun-hero"]},
+{id:800,n:"Odysseus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Hero of Trojan War.",tg:["odysseus","trojan","greek"],cn:["greek","sun-hero"]},
+{id:801,n:"Patroclus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Achilles' companion.",tg:["patroclus","achilles","greek"],cn:["greek"]},
+{id:802,n:"Hector",la:39,lo:26,t:"mythical-place",c:"Greek",e:0,d:"Trojan hero.",tg:["hector","trojan","greek"],cn:["greek"]},
+{id:803,n:"Ajax",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Warrior at Troy.",tg:["ajax","warrior","greek"],cn:["greek"]},
+{id:804,n:"Thetis",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Sea nymph, mother of Achilles.",tg:["thetis","sea","greek"],cn:["greek","water","creation"]},
+{id:805,n:"Peleus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Father of Achilles.",tg:["peleus","achilles","greek"],cn:["greek"]},
+{id:806,n:"Jason",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Leader of Argonauts.",tg:["jason","argonauts","greek"],cn:["greek","sun-hero","water"]},
+{id:807,n:"Medusa",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Gorgon with snakes for hair.",tg:["medusa","gorgon","greek"],cn:["greek","underworld"]},
+{id:808,n:"Pegasus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Winged horse.",tg:["pegasus","winged","greek"],cn:["greek"]},
+{id:809,n:"Bellerophon",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Hero who rode Pegasus.",tg:["bellerophon","hero","greek"],cn:["greek","sun-hero"]},
+{id:810,n:"Arachne",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Weaver turned spider.",tg:["arachne","weaver","greek"],cn:["greek"]},
+{id:811,n:"Daedalus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Built labyrinth.",tg:["daedalus","labyrinth","greek"],cn:["greek"]},
+{id:812,n:"Philoctetes",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Archer with bow of Hercules.",tg:["philoctetes","archer","greek"],cn:["greek"]},
+{id:813,n:"Philomela",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Nightingale goddess.",tg:["philomela","nightingale","greek"],cn:["greek"]},
+{id:814,n:"Procrustes",la:38,lo:23,t:"mythical-place",c:"Greek",e:0,d:"Stretched victims to fit bed.",tg:["procustes","bed","greek"],cn:["greek","underworld"]},
+{id:815,n:"Sciron",la:37,lo:23,t:"mythical-place",c:"Greek",e:0,d:"Robber who kicked travelers into sea.",tg:["sciron","robber","greek"],cn:["greek","underworld"]},
+{id:816,n:"Procrustes",la:38,lo:23,t:"mythical-place",c:"Greek",e:0,d:"Stretched victims to fit bed.",tg:["procustes","bed","greek"],cn:["greek","underworld"]},
+{id:817,n:"Busiris",la:31,lo:32,t:"mythical-place",c:"Greek",e:0,d:"Egyptian king who sacrificed foreigners.",tg:["busiris","egypt","greek"],cn:["greek","egyptian"]},
+{id:818,n:"Sylea",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Nymph who nursed Dionysus.",tg:["sylea","nymph","greek"],cn:["greek"]},
+{id:819,n:"Cybele",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Mother of gods.",tg:["cybele","mother","greek"],cn:["greek","creation"]},
+{id:820,n:"Rhea",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Mother of gods.",tg:["rhea","mother","greek"],cn:["greek","creation"]},
+{id:821,n:"Coeus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Titan of intellect.",tg:["coeus","intellect","greek"],cn:["greek","creation"]},
+{id:822,n:"Crius",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Titan of constellations.",tg:["crius","constellations","greek"],cn:["greek"]},
+{id:823,n:"Hyperion",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Titan of light.",tg:["hyperion","light","greek"],cn:["greek","creation","sun-hero"]},
+{id:824,n:"Iapetus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Titan father of Prometheus.",tg:["iapetus","father","greek"],cn:["greek","creation"]},
+{id:825,n:"Oceanus",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"River that encircles world.",tg:["oceanus","river","greek"],cn:["greek","water","creation"]},
+{id:826,n:"Tethys",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Wife of Oceanus.",tg:["tethys","wife","greek"],cn:["greek","water"]},
+{id:827,n:"Themis",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of justice.",tg:["themis","justice","greek"],cn:["greek"]},
+{id:828,n:"Mnemosyne",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of memory.",tg:["mnemosyne","memory","greek"],cn:["greek","creation"]},
+{id:829,n:"Phoebe",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Titaness of prophecy.",tg:["phoebe","prophecy","greek"],cn:["greek"]},
+{id:830,n:"Thalia",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of comedy.",tg:["thalia","comedy","greek"],cn:["greek"]},
+{id:831,n:"Melpomene",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of tragedy.",tg:["melpomene","tragedy","greek"],cn:["greek"]},
+{id:832,n:"Terpsichore",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of dance.",tg:["terpsichore","dance","greek"],cn:["greek"]},
+{id:833,n:"Erato",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of love poetry.",tg:["erato","poetry","greek"],cn:["greek"]},
+{id:834,n:"Euterpe",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of music.",tg:["euterpe","music","greek"],cn:["greek"]},
+{id:835,n:"Polyhymnia",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of sacred poetry.",tg:["polyhymnia","poetry","greek"],cn:["greek"]},
+{id:836,n:"Urania",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of astronomy.",tg:["urania","astronomy","greek"],cn:["greek"]},
+{id:837,n:"Calliope",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of epic poetry.",tg:["calliope","epic","greek"],cn:["greek"]},
+{id:838,n:"Clio",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Muse of history.",tg:["clio","history","greek"],cn:["greek"]},
+{id:839,n:"Aether",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"God of upper air.",tg:["aether","air","greek"],cn:["greek","creation"]},
+{id:840,n:"Hemera",la:39,lo:22,t:"mythical-place",c:"Greek",e:0,d:"Goddess of day.",tg:["hemera","day","greek"],cn:["greek","sun-hero"]},
+{id:841,n:"Erebus",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"Personification of darkness.",tg:["erebus","darkness","greek"],cn:["greek","creation"]},
+{id:842,n:"Hypnos",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"God of sleep.",tg:["hypnos","sleep","greek"],cn:["greek","underworld"]},
+{id:843,n:"Thanatos",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"God of death.",tg:["thanatos","death","greek"],cn:["greek","underworld"]},
+{id:844,n:"Oneiroi",la:39,lo:22,t:"underworld",c:"Greek",e:0,d:"Dream spirits.",tg:["dreams","spirits","greek"],cn:["greek","underworld","shaman"]},
+{id:845,n:"Hades",la:39,lo:22,t:"underworld",c:"Roman",e:1,d:"Roman god of the dead.",tg:["hades","roman","underworld"],cn:["roman","underworld"]},
+{id:846,n:"Jupiter",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"King of gods. Thunderer.",tg:["jupiter","thunder","roman"],cn:["roman","axis"]},
+{id:847,n:"Juno",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Queen of gods.",tg:["juno","queen","roman"],cn:["roman"]},
+{id:848,n:"Neptune",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of the sea.",tg:["neptune","sea","roman"],cn:["roman","water","axis"]},
+{id:849,n:"Pluto",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of wealth and underworld.",tg:["pluto","wealth","roman"],cn:["roman","underworld"]},
+{id:850,n:"Mars",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of war.",tg:["mars","war","roman"],cn:["roman"]},
+{id:851,n:"Venus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Goddess of love.",tg:["venus","love","roman"],cn:["roman","creation"]},
+{id:852,n:"Minerva",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Goddess of wisdom.",tg:["minerva","wisdom","roman"],cn:["roman","axis"]},
+{id:853,n:"Apollo",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Sun and music god.",tg:["apollo","sun","roman"],cn:["roman","sun-hero","axis"]},
+{id:854,n:"Diana",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Moon and hunt goddess.",tg:["diana","moon","roman"],cn:["roman"]},
+{id:855,n:"Mercury",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Messenger god.",tg:["mercury","messenger","roman"],cn:["roman"]},
+{id:856,n:"Vulcan",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of fire and forge.",tg:["vulcan","forge","roman"],cn:["roman"]},
+{id:857,n:"Bacchus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of wine.",tg:["bacchus","wine","roman"],cn:["roman","shaman"]},
+{id:858,n:"Ceres",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Goddess of agriculture.",tg:["ceres","agriculture","roman"],cn:["roman"]},
+{id:859,n:"Vesta",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Goddess of hearth.",tg:["vesta","hearth","roman"],cn:["roman"]},
+{id:860,n:"Bellona",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Goddess of war.",tg:["bellona","war","roman"],cn:["roman"]},
+{id:861,n:"Fortuna",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Goddess of fortune.",tg:["fortuna","fortune","roman"],cn:["roman"]},
+{id:862,n:"Janus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of beginnings.",tg:["janus","beginnings","roman"],cn:["roman","axis"]},
+{id:863,n:"Quirinus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of Roman people.",tg:["quirinus","people","roman"],cn:["roman"]},
+{id:864,n:"Terminus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of boundaries.",tg:["terminus","boundaries","roman"],cn:["roman"]},
+{id:865,n:"Sphinx",la:29,lo:31,t:"mythical-place",c:"Roman",e:1,d:"Guardian of sacred places.",tg:["sphinx","guardian","roman"],cn:["roman","axis"]},
+{id:866,n:"Faunus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of the wild.",tg:["faunus","wild","roman"],cn:["roman","shaman"]},
+{id:867,n:"Silvanus",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"God of woods.",tg:["silvanus","woods","roman"],cn:["roman","shaman"]},
+{id:868,n:"Nereids",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Sea nymphs.",tg:["nereids","sea","roman"],cn:["roman","water","shaman"]},
+{id:869,n:"Triton",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Messenger of the sea.",tg:["triton","messenger","roman"],cn:["roman","water"]},
+{id:870,n:"Medea",la:41,lo:12,t:"mythical-place",c:"Roman",e:1,d:"Enchantress.",tg:["medea","enchantress","roman"],cn:["roman","shaman"]},
+{id:871,n:"Druantia",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Mother of the druidic oak.",tg:["druid","oak","celtic"],cn:["celtic","creation","axis"]},
+{id:872,n:"Arianrhod",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Moon goddess of the sky.",tg:["moon","goddess","celtic"],cn:["celtic"]},
+{id:873,n:"Blodeuwedd",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Woman made from flowers.",tg:["flowers","woman","celtic"],cn:["celtic","creation"]},
+{id:874,n:"Manawydan",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Son of Beli. Trickster.",tg:["manawydan","trickster","celtic"],cn:["celtic"]},
+{id:875,n:"Pryderi",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Son of Pwyll. Raised by Manawydan.",tg:["pryderi","son","celtic"],cn:["celtic"]},
+{id:876,n:"Rhiannon",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Magical horse goddess.",tg:["rhiannon","horse","celtic"],cn:["celtic","shaman"]},
+{id:877,n:"Arawn",la:52,lo:-4,t:"underworld",c:"Celtic",e:0,d:"Lord of Annwn.",tg:["arawn","annwn","celtic"],cn:["celtic","underworld"]},
+{id:878,n:"Pwyll",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Lord of Dyved.",tg:["pwyll","lord","celtic"],cn:["celtic"]},
+{id:879,n:"Math",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Lord of Gwynedd.",tg:["math","lord","celtic"],cn:["celtic"]},
+{id:880,n:"Govannon",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"God of smiths.",tg:["govannon","smith","celtic"],cn:["celtic"]},
+{id:881,n:"Gwydion",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Magician and trickster.",tg:["gwydion","magic","celtic"],cn:["celtic","shaman"]},
+{id:882,n:"Don",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Mother goddess.",tg:["don","mother","celtic"],cn:["celtic","creation"]},
+{id:883,n:"Beli",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Father figure.",tg:["beli","father","celtic"],cn:["celtic","creation"]},
+{id:884,n:"Lleu",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Son of Arianrhod.",tg:["lleu","son","celtic"],cn:["celtic"]},
+{id:885,n:"Dylan",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Son of the sea.",tg:["dylan","sea","celtic"],cn:["celtic","water"]},
+{id:886,n:"Manawydan",la:52,lo:-4,t:"mythical-place",c:"Welsh",e:0,d:"Brother of Pwyll.",tg:["manawydan","brother","welsh"],cn:["celtic"]},
+{id:887,n:"Ragnell",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Hag who became beauty.",tg:["ragnell","hag","celtic"],cn:["celtic"]},
+{id:888,n:"Gawain",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Knight of the Round Table.",tg:["gawain","knight","celtic"],cn:["celtic"]},
+{id:889,n:"Lancelot",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Greatest knight.",tg:["lancelot","knight","celtic"],cn:["celtic"]},
+{id:890,n:"Galahad",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Pure knight who found the Grail.",tg:["galahad","pure","celtic"],cn:["celtic"]},
+{id:891,n:"Perceval",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Knight who sought the Grail.",tg:["perceval","grail","celtic"],cn:["celtic"]},
+{id:892,n:"Bors",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Knight of the Grail.",tg:["bors","grail","celtic"],cn:["celtic"]},
+{id:893,n:"Mordred",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Arthur's son and enemy.",tg:["mordred","arthur","celtic"],cn:["celtic","underworld"]},
+{id:894,n:"Morgan",la:51,lo:-3,t:"mythical-place",c:"Celtic",e:0,d:"Arthur's half-sister.",tg:["morgan","magic","celtic"],cn:["celtic","shaman"]},
+{id:895,n:"Nimue",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Lady of the Lake.",tg:["nimue","lake","celtic"],cn:["celtic","water","shaman"]},
+{id:896,n:"Tom Thumb",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Tiny hero.",tg:["thumb","tiny","celtic"],cn:["celtic"]},
+{id:897,n:"Ywain",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Knight who fought a lion.",tg:["ywain","lion","celtic"],cn:["celtic"]},
+{id:898,n:"Gareth",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Knight of the Round Table.",tg:["gareth","knight","celtic"],cn:["celtic"]},
+{id:899,n:"Kay",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Arthur's foster brother.",tg:["kay","arthur","celtic"],cn:["celtic"]},
+{id:900,n:"Bedivere",la:52,lo:-4,t:"mythical-place",c:"Celtic",e:0,d:"Last knight to return Excalibur.",tg:["bedivere","excalibur","celtic"],cn:["celtic"]}
+];
+
+const CN={
+flood:[[2,11],[11,50],[50,36],[36,22],[22,52],[52,57]],
+axis:[[1,3],[3,15],[15,19],[19,29],[29,206],[206,207]],
+balkan:[[47,48],[48,49],[49,50],[50,51],[51,53],[53,62],[62,63],[63,64],[64,65],[65,66],[66,67],[67,68],[68,69],[69,56],[56,58],[58,59],[59,60],[60,61],[61,52],[52,54],[54,55],[55,57],[57,47]],
+dragon:[[47,56],[56,59],[59,64],[64,68],[281,283],[184,185]],
+vampire:[[54,55],[55,57]],
+orphic:[[52,65]],
+silk:[[19,46],[46,26],[26,81],[81,107]],
+norse:[[13,206],[206,207],[207,209],[209,210]],
+celtic:[[7,29],[29,30],[30,181],[181,182]],
+african:[[11,155],[155,298],[298,308],[308,341]],
+shaman:[[5,261],[142,257],[257,288],[288,289]],
+creation:[[6,9],[9,64],[64,71],[174,175],[210,230]],
+sunHero:[[97,98],[98,136],[185,186],[192,209],[305,337]],
+underworld:[[8,92],[92,101],[101,156],[156,239]],
+water:[[22,88],[88,128],[114,341],[341,337]],
+shan:[[501,502],[502,503],[503,504],[504,505],[505,506],[506,507],[507,508],[508,509],[509,510],[510,511],[511,512],[512,513],[513,514],[514,515],[515,516],[516,517],[517,518],[518,519],[519,520],[520,521],[521,522],[522,523],[523,524],[524,525],[525,526],[526,527],[527,528],[528,529],[529,530],[530,531],[531,532],[532,533],[533,534],[534,535],[535,536],[536,537],[537,538],[538,539],[539,540],[540,541],[541,542],[542,543],[543,544],[544,545],[545,546],[546,547],[547,548],[548,549],[549,550],[550,551],[551,552],[552,553],[553,554],[554,555],[555,556],[556,557],[557,558],[558,559],[559,560],[560,561],[561,562],[562,563],[563,564],[564,565],[565,566],[566,567],[567,568],[568,569],[569,570],[570,571],[571,572],[572,573],[573,574],[574,575],[575,576],[576,577],[577,578],[578,579],[579,580],[580,581],[581,582],[582,583],[583,584],[584,585],[585,586],[586,587],[587,588],[588,589],[589,590],[590,591],[591,592],[592,593],[593,594],[594,595],[595,596],[596,597],[597,598],[598,599],[599,600]],
+mayan:[[4,33],[33,34],[34,183],[183,184]],
+pacific:[[31,188],[188,189],[189,342],[342,343]]
+};
+
+let autoZoom=true,selected=null,era=4,filter="all",activeConns=[];
+
+const w=window.innerWidth-400,h=window.innerHeight,r=Math.min(w,h)*.42;
+const svg=d3.select("#map").attr("width",w).attr("height",h);
+const g=svg.append("g").attr("transform","translate("+w/2+","+h/2+")");
+
+const z=d3.zoom().scaleExtent([.5,10]).on("zoom",e=>{g.attr("transform","translate("+w/2+","+h/2+") "+e.transform)});
+svg.call(z);
+
+const proj=d3.geoAzimuthalEquidistant().scale(r).translate([0,0]).rotate([0,-90]).clipAngle(180);
+const pth=d3.geoPath().projection(proj);
+
+g.append("circle").attr("r",r*.9).attr("fill","none").attr("stroke","#1e293b");
+
+d3.json("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json").then(wld=>{
+g.append("path").datum(topojson.feature(wld,wld.objects.countries)).attr("class","land").attr("d",pth);
+g.append("path").datum(d3.geoGraticule()()).attr("class","graticule").attr("d",pth);
+init();
+}).catch(e=>{
+console.log("CDN failed, using simple map",e);
+g.append("circle").attr("cx",0).attr("cy",0).attr("r",r*0.85).attr("fill","none").attr("stroke","#334155").attr("stroke-width",0.5).attr("stroke-dasharray","5,5");
+for(let i=0;i<360;i+=30){g.append("line").attr("x1",0).attr("y1",0).attr("x2",r*0.85*Math.cos(i*Math.PI/180)).attr("y2",r*0.85*Math.sin(i*Math.PI/180)).attr("stroke","#1e293b").attr("stroke-width",0.5).attr("stroke-dasharray","3,3");}
+init();
+});
+
+function init(){
+console.log("Init: D has",D.length,"items, era=",era);
+update();
+}
+
+const cs={0:"#fbbf24",1:"#60a5fa",2:"#ef4444",3:"#a78bfa",4:"#22c55e"};
+
+function zoomTo(l){
+if(!l)return;
+const c=proj([l.lo,l.la]);
+svg.transition().duration(750).call(z.transform,d3.zoomIdentity.translate(w/2-c[0]*4,h/2-c[1]*4).scale(4));
+}
+
+function update(){
+let f=D.filter(l=>l.e<=era&&(filter==="all"||(filter==="custom"?customData.some(c=>c.id===l.id):l.t===filter)));
+console.log("Update: filtered",f.length,"items, era=",era);
+document.getElementById("vis").textContent=f.length;
+
+g.selectAll(".group").remove();
+g.selectAll(".ley-line").remove();
+
+if(f.length===0){console.log("No items to display!");return;}
+
+activeConns.forEach(t=>{
+(CN[t]||[]).forEach(([a,b])=>{
+const x=D.find(d=>d.id===a),y=D.find(d=>d.id===b);
+if(x&&y&&f.includes(x)&&f.includes(y)){
+const c1=proj([x.lo,x.la]),c2=proj([y.lo,y.la]);
+g.append("line").attr("class","ley-line").attr("x1",c1[0]).attr("y1",c1[1]).attr("x2",c2[0]).attr("y2",c2[1]);
+}
+});
+});
+
+const gr=g.selectAll(".group").data(f).enter().append("g").attr("class","group")
+.attr("transform",d=>"translate("+proj([d.lo,d.la])+")")
+.on("click",(e,d)=>select(d))
+.on("mouseover",function(e,d){
+const tt=d3.select("#tooltip");
+tt.style("opacity",1).style("left",(e.pageX+15)+"px").style("top",(e.pageY-50)+"px");
+tt.select("h3").text(d.n);
+tt.select("p").text(d.c+" - "+d.e+" Era");
+})
+.on("mouseout",()=>d3.select("#tooltip").style("opacity",0));
+
+gr.append("circle").attr("class","pulse").attr("r",4).attr("stroke",d=>cs[d.e]);
+gr.append("circle").attr("class","core").attr("r",d=>selected&&d.id===selected.id?8:4).attr("fill",d=>cs[d.e]);
+gr.append("text").attr("class","label").attr("y",-12).attr("text-anchor","middle").text(d=>d.n).style("display","none");
+
+const connectedIds=new Set();
+activeConns.forEach(t=>{
+(CN[t]||[]).forEach(([a,b])=>{connectedIds.add(a);connectedIds.add(b);});
+});
+const hasNetworks=activeConns.length>0;
+
+gr.each(function(d){
+const isNetDimmed=hasNetworks&&!connectedIds.has(d.id);
+const isSelDimmed=selected&&d.id!==selected.id;
+const isDimmed=isNetDimmed||isSelDimmed;
+const isSelected=selected&&d.id===selected.id;
+d3.select(this).select(".pulse").classed("selected",isSelected).classed("dimmed",isDimmed);
+d3.select(this).select(".core").classed("selected",isSelected).classed("dimmed",isDimmed).attr("r",isSelected?8:4);
+d3.select(this).select(".label").classed("visible",isSelected).classed("dimmed",isDimmed);
+d3.select(this).classed("dimmed",isDimmed);
+});
+
+const lst=d3.select("#legend-list").html("");
+f.sort((a,b)=>a.e-b.e).forEach((l,i)=>{
+const itm=lst.append("div").attr("class","item").attr("data-id",l.id).on("click",()=>select(l));
+itm.append("div").attr("class","name").text(l.n);
+itm.append("div").attr("class","meta").html("<span>"+l.c+"</span><span>"+l.la+", "+l.lo+"</span>");
+});
+}
+
+function select(l){
+selected=l;
+d3.selectAll(".item").classed("active",false);
+d3.selectAll(".item").filter(function(){return d3.select(this).attr("data-id")==l.id}).classed("active",true);
+g.selectAll(".group").each(function(d){
+const s=d.id===l.id;
+d3.select(this).select(".pulse").classed("selected",s).classed("dimmed",!s);
+d3.select(this).select(".core").classed("selected",s).classed("dimmed",!s).attr("r",s?8:4);
+d3.select(this).select(".label").classed("visible",s).classed("dimmed",!s);
+d3.select(this).classed("dimmed",!s);
+});
+if(autoZoom)zoomTo(l);
+const fi=D.filter(x=>x.e<=era&&(filter==="all"||(filter==="custom"?customData.some(c=>c.id===x.id):x.t===filter))).sort((a,b)=>a.e-b.e).findIndex(x=>x.id===l.id);
+document.getElementById("idx").textContent=fi>=0?fi+1:"-";
+const inf=d3.select("#info");
+inf.style("display","block");
+inf.select("#info-name").text(l.n);
+inf.select("#info-desc").text(l.d);
+inf.select("#info-tags").html(l.tg.map(t=>"<span class='tag'>"+t+"</span>").join(""));
+const q=encodeURIComponent(l.n);
+const isShan=l.c==="Shan Hai Jing";
+const links=isShan?[
+["百科详情","https://www.detailedpedia.com/search?keyword="+q],
+["山海经","https://shanhai0.com/?s="+q],
+["中华百科","https://www.zgbk.com/?s="+q]
+]:[
+["Baidu Intl","https://www.baidu.com/s?wd="+q+"&hl=en"],
+["Bing Eng","https://www.bing.com/search?q="+q],
+["Wikipedia","https://en.wikipedia.org/wiki/Special:Search?search="+q]
+];
+inf.select("#info-links").html("<div class='link-label'>LEARN MORE</div>"+links.map(([n,u])=>"<a class='link-btn' href='"+u+"' target='_blank'>"+n+"</a>").join(""));
+}
+
+document.getElementById("btn-auto").onclick=function(){
+autoZoom=!autoZoom;this.textContent="Auto: "+(autoZoom?"ON":"OFF");this.classList.toggle("active",autoZoom);
+if(autoZoom&&selected)zoomTo(selected);
+};
+
+var toggleList = ["flood","axis","balkan","dragon","silk","vampire","norse","celtic","african","shaman","creation","sunHero","underworld","water","shan","mayan","pacific"];
+toggleList.forEach(t=>{
+document.getElementById("toggle-"+t).onclick=function(e){
+e.stopPropagation();
+if(activeConns.includes(t)){activeConns=activeConns.filter(c=>c!==t);this.classList.remove("active");}
+else{activeConns.push(t);this.classList.add("active");}
+update();
+};
+});
+
+document.getElementById("toggle-all").onclick=function(e){
+e.stopPropagation();
+const all=["flood","axis","balkan","dragon","silk","vampire","norse","celtic","african","shaman","creation","sunHero","underworld","water","mayan","pacific"];
+if(activeConns.length===all.length){activeConns=[];all.forEach(t=>document.getElementById("toggle-"+t).classList.remove("active"));this.classList.remove("active");}
+else{activeConns=[...all];all.forEach(t=>document.getElementById("toggle-"+t).classList.add("active"));this.classList.add("active");}
+update();
+};
+
+document.querySelectorAll(".filter-chip").forEach(b=>{
+b.onclick=function(e){
+e.stopPropagation();
+document.querySelectorAll(".filter-chip").forEach(x=>x.classList.remove("active"));
+this.classList.add("active");
+filter=this.getAttribute("data-filter");
+update();
+};
+});
+
+document.getElementById("search-input").oninput=function(){
+const term=this.value.toLowerCase();
+let f=D.filter(l=>l.e<=era);
+if(term){
+f=f.filter(l=>l.n.toLowerCase().includes(term)||l.d.toLowerCase().includes(term)||l.c.toLowerCase().includes(term));
+}else{
+f=D.filter(l=>l.e<=era&&(filter==="all"||(filter==="custom"?customData.some(c=>c.id===l.id):l.t===filter)));
+}
+const lst=d3.select("#legend-list").html("");
+f.sort((a,b)=>a.e-b.e).forEach((l,i)=>{
+const itm=lst.append("div").attr("class","item").attr("data-id",l.id).on("click",()=>select(l));
+itm.append("div").attr("class","name").text(l.n);
+itm.append("div").attr("class","meta").html("<span>"+l.c+"</span><span>"+l.la+", "+l.lo+"</span>");
+});
+document.getElementById("vis").textContent=f.length;
+};
+
+document.getElementById("btn-zoom-in").onclick=()=>svg.transition().duration(250).call(z.scaleBy,1.25);
+document.getElementById("btn-zoom-out").onclick=()=>svg.transition().duration(250).call(z.scaleBy,0.8);
+document.getElementById("btn-zoom-reset").onclick=()=>svg.transition().duration(250).call(z.transform,d3.zoomIdentity);
+document.getElementById("btn-zoom-legend").onclick=()=>zoomTo(selected);
+
+d3.select("#legend-list").on("wheel",()=>event.stopPropagation());
+
+let focusedIndex=-1;
+document.addEventListener("keydown",e=>{
+if(e.target.tagName==="INPUT")return;
+let f=D.filter(l=>l.e<=era&&(filter==="all"||(filter==="custom"?customData.some(c=>c.id===l.id):l.t===filter))).sort((a,b)=>a.e-b.e);
+if(!f.length)return;
+if(e.key==="r"||e.key==="R"){const idx=Math.floor(Math.random()*f.length);select(f[idx]);}
+if(e.key==="c"||e.key==="C"){d3.select("#info").style("display","none");selected=null;update();}
+if(e.key==="ArrowDown"){focusedIndex=(focusedIndex+1)%f.length;select(f[focusedIndex]);}
+if(e.key==="ArrowUp"){focusedIndex=focusedIndex<=0?f.length-1:focusedIndex-1;select(f[focusedIndex]);}
+if(e.key==="Enter"&&selected){const el=document.querySelector(".item[data-id='"+selected.id+"']");if(el)el.scrollIntoView({behavior:"smooth"});}
+if(e.key==="z"||e.key==="Z"){if(selected)zoomTo(selected);}
+});
+
+document.getElementById("btn-random").onclick=function(){
+let f=D.filter(l=>l.e<=era&&(filter==="all"||l.t===filter));
+if(f.length){const idx=Math.floor(Math.random()*f.length);select(f[idx]);}
+};
+
+document.getElementById("info-close").onclick=function(){
+d3.select("#info").style("display","none");
+selected=null;
+update();
+};
+
+let customData=[];
+document.getElementById("btn-export").onclick=function(){
+const exportData={version:"v16",date:new Date().toISOString(),legends:customData.length?customData:D.map(l=>({id:l.id,n:l.n,la:l.la,lo:l.lo,t:l.t,c:l.c,e:l.e,d:l.d,tg:l.tg,cn:l.cn}))};
+const blob=new Blob([JSON.stringify(exportData,null,2)],{type:"application/json"});
+const url=URL.createObjectURL(blob);
+const a=document.createElement("a");
+a.href=url;a.download="world-legends-backup.json";a.click();
+URL.revokeObjectURL(url);
+};
+document.getElementById("btn-import").onclick=function(){document.getElementById("file-import").click()};
+document.getElementById("file-import").onchange=function(e){
+const file=e.target.files[0];
+if(!file)return;
+const reader=new FileReader();
+reader.onload=function(evt){
+try{
+const data=JSON.parse(evt.target.result);
+if(data.legends){
+customData=data.legends;
+const allData=[...D,...customData];
+D=allData;
+document.getElementById("tot").textContent=D.length;
+document.getElementById("custom-count").textContent=customData.length;
+update();
+alert("Imported "+customData.length+" legends successfully!");
+}
+}catch(err){alert("Error reading file: "+err.message);}
+};
+reader.readAsText(file);
+e.target.value="";
+};
+
+document.getElementById("btn-add").onclick=function(){
+document.getElementById("add-modal").style.display="flex";
+};
+document.getElementById("btn-help").onclick=function(){
+const m=document.getElementById("help-modal");
+m.style.visibility=m.style.visibility==="visible"?"hidden":"visible";
+};
+document.getElementById("btn-cancel-add").onclick=function(){
+document.getElementById("add-modal").style.display="none";
+};
+document.getElementById("btn-save-add").onclick=function(){
+const name=document.getElementById("add-name").value.trim();
+const lat=parseFloat(document.getElementById("add-lat").value);
+const lon=parseFloat(document.getElementById("add-lon").value);
+const type=document.getElementById("add-type").value;
+const culture=document.getElementById("add-culture").value.trim();
+const era=parseInt(document.getElementById("add-era").value);
+const desc=document.getElementById("add-desc").value.trim();
+const tagsStr=document.getElementById("add-tags").value.trim();
+if(!name||isNaN(lat)||isNaN(lon)||!culture||!desc){alert("Please fill in all required fields");return;}
+const tags=tagsStr?tagsStr.split(",").map(t=>t.trim()):[];
+const newId=D.length>0?Math.max(...D.map(d=>d.id))+1:901;
+const newLegend={id:newId,n:name,la:lat,lo:lon,t:type,c:culture,e:4,d:desc,tg:tags,cn:[]};
+D.push(newLegend);
+customData.push(newLegend);
+document.getElementById("tot").textContent=D.length;
+document.getElementById("custom-count").textContent=customData.length;
+update();
+document.getElementById("add-modal").style.display="none";
+document.getElementById("add-name").value="";
+document.getElementById("add-lat").value="";
+document.getElementById("add-lon").value="";
+document.getElementById("add-culture").value="";
+document.getElementById("add-desc").value="";
+document.getElementById("add-tags").value="";
+alert("Legend added successfully!");
+};
+</script>
 </body>
 </html>
